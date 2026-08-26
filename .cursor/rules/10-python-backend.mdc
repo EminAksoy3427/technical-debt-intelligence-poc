@@ -1,0 +1,14 @@
+---
+description: Python FastAPI backend conventions
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+- Target Python 3.12.
+- Use type hints on public functions and API contracts.
+- Keep FastAPI routers thin; route handlers delegate to small functions when logic grows.
+- Keep business logic out of HTTP/router modules.
+- Use Pydantic models for request and response contracts.
+- Use `pydantic-settings` for environment-based application configuration.
+- Prefer simple, readable Python over unnecessary abstractions.
+- Add or update tests for changed backend behavior.

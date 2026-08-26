@@ -2,13 +2,22 @@
 venv/
 __pycache__/
 .pytest_cache/
+.mypy_cache/
 .ruff_cache/
-*.pyc
-*.pyo
+
+.git/
 
 .env
 .env.*
 
+*.log
+*.zip
+*.bin
+*.gguf
+
 dist/
 build/
-*.egg-info/
+coverage/
+htmlcov/
+
+data/generated/
