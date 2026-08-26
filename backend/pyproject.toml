@@ -4,8 +4,11 @@ version = "0.1.0"
 description = "Technical Debt Intelligence & Governance PoC backend"
 requires-python = ">=3.12"
 dependencies = [
+    "alembic>=1.13.0,<2.0",
     "fastapi>=0.115.0",
     "pydantic-settings>=2.0.0",
+    "pyodbc>=5.0.0,<6.0",
+    "sqlalchemy>=2.0.0,<3.0",
     "uvicorn[standard]>=0.32.0",
 ]
 
@@ -19,6 +22,9 @@ dev = [
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+markers = [
+    "integration: requires externally configured infrastructure",
+]
 
 [tool.ruff]
 target-version = "py312"
@@ -26,3 +32,6 @@ line-length = 88
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]

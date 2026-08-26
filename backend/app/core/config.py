@@ -1,3 +1,4 @@
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -10,6 +11,8 @@ class Settings(BaseSettings):
 
     app_title: str = "Technical Debt Intelligence & Governance PoC"
     api_v1_prefix: str = "/api/v1"
+    database_url: SecretStr | None = None
+    database_connection_timeout_seconds: int = Field(default=5, gt=0)
 
 
 settings = Settings()

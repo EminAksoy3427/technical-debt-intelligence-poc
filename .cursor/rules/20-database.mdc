@@ -1,0 +1,13 @@
+---
+description: MSSQL persistence and migration conventions
+globs: "{backend/app/infrastructure/database/**/*.py,backend/alembic/**/*.py}"
+alwaysApply: false
+---
+
+- Use synchronous SQLAlchemy 2 APIs and the `mssql+pyodbc` dialect.
+- Keep MSSQL access inside persistence, repository, or adapter boundaries; FastAPI routers never execute SQL directly.
+- Read database configuration from environment-backed settings. Never hard-code or log database endpoints, names, credentials, secrets, or full secret-bearing connection strings.
+- Use Alembic for schema versioning; never use runtime `Base.metadata.create_all()` for schema management.
+- Keep migrations incremental and reversible where reasonably possible.
+- Keep transaction and session ownership explicit when sessions are introduced.
+- Add persistence abstractions only when concrete requirements need them.
