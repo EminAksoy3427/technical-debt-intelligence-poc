@@ -22,8 +22,10 @@ defineProps<{
       <tbody>
         <tr v-for="candidate in candidates" :key="candidate.id">
           <th scope="row">
-            <span class="candidate-identifier">{{ candidate.id }}</span>
-            <span class="candidate-title">{{ candidate.title }}</span>
+            <NuxtLink :to="`/candidates/${candidate.id}`" class="candidate-link">
+              <span class="candidate-identifier">{{ candidate.id }}</span>
+              <span class="candidate-title">{{ candidate.title }}</span>
+            </NuxtLink>
           </th>
           <td>
             <span>{{ candidate.assetName }}</span>
