@@ -1,0 +1,16 @@
+---
+description: Project-wide Technical Debt Intelligence & Governance PoC principles
+alwaysApply: true
+---
+
+- `Signal`, `Candidate`, and `TechnicalDebt` are distinct lifecycle concepts.
+- A signal is not automatically technical debt.
+- Multiple evidence items may support one structural technical-debt candidate.
+- AI provides recommendations; evidence explains; authorized humans make critical lifecycle decisions.
+- Do not allow AI to validate, accept risk, or close technical debt.
+- Prefer clear code over clever code.
+- Do not introduce unnecessary abstractions.
+- Do not implement functionality outside the current task scope.
+- Do not refactor unrelated files.
+- Do not hard-code secrets, infrastructure-specific connection information, or model/provider identifiers.
+- Do not implement frontend code until the frontend technology decision is explicitly made.

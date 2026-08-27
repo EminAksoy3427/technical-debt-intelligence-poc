@@ -1,0 +1,13 @@
+---
+description: Backend test conventions
+globs: backend/tests/**/*.py
+alwaysApply: false
+---
+
+- Test externally observable behavior rather than implementation details.
+- Unit and domain tests must not depend on live infrastructure.
+- Tests requiring MSSQL must use the existing `integration` marker.
+- Normal test execution must remain usable without local MSSQL configuration.
+- API contract tests should validate public HTTP and OpenAPI behavior.
+- Changed behavior requires corresponding tests.
+- Test fixtures must not contain real secrets or machine-specific credentials.
