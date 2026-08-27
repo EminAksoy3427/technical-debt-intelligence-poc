@@ -1,0 +1,12 @@
+---
+description: Nuxt frontend implementation conventions
+globs: frontend/**/*
+alwaysApply: false
+---
+
+- Use the standard Nuxt application structure and keep pages focused on presentation and interaction.
+- Do not place technical-debt lifecycle decisions in Vue or Nuxt code, and do not create a Nuxt-side shadow backend.
+- Keep mock data isolated so it can later be replaced by the FastAPI `/api/v1` client.
+- Do not add UI/CSS frameworks, state-management libraries, or other dependencies unless the current work package requires them.
+- Keep components small and explicitly named.
+- Preserve governance-first, AI-second product language.
