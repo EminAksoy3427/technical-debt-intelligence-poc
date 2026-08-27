@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 
+import app.infrastructure.database.enterprise_estate_models  # noqa: F401
 from alembic import context
 from app.core.config import settings
 from app.infrastructure.database.base import Base
