@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_key": "asteria-hardcoded-endpoint",
+      "expected_candidate_group_key": "eval-group-asteria-hardcoded-endpoint",
+      "expected_asset_key": "repo-asteria-editor",
+      "issue_family": "HARDCODED_ENDPOINT",
+      "source_refs": [
+        {
+          "source_type": "CONTROLLED_REPOSITORY",
+          "repository_key": "repo-asteria-editor",
+          "source_file": "catalog_client.py"
+        }
+      ]
+    },
+    {
+      "case_key": "borealis-missing-timeout",
+      "expected_candidate_group_key": "eval-group-borealis-missing-timeout",
+      "expected_asset_key": "repo-borealis-renderer",
+      "issue_family": "MISSING_TIMEOUT",
+      "source_refs": [
+        {
+          "source_type": "CONTROLLED_REPOSITORY",
+          "repository_key": "repo-borealis-renderer",
+          "source_file": "renderer_client.py"
+        }
+      ]
+    },
+    {
+      "case_key": "orbit-process-local-state",
+      "expected_candidate_group_key": "eval-group-orbit-process-local-state",
+      "expected_asset_key": "repo-orbit-catalog",
+      "issue_family": "PROCESS_LOCAL_STATE",
+      "source_refs": [
+        {
+          "source_type": "CONTROLLED_REPOSITORY",
+          "repository_key": "repo-orbit-catalog",
+          "source_file": "catalog_cache.py"
+        }
+      ]
+    },
+    {
+      "case_key": "orbit-recurring-incidents",
+      "expected_candidate_group_key": "eval-group-orbit-recurring-incidents",
+      "expected_asset_key": "svc-orbit-catalog",
+      "issue_family": "RECURRING_INCIDENT_PATTERN",
+      "source_refs": [
+        {
+          "source_type": "INCIDENT",
+          "incident_key": "inc-orbit-001"
+        },
+        {
+          "source_type": "INCIDENT",
+          "incident_key": "inc-orbit-002"
+        },
+        {
+          "source_type": "INCIDENT",
+          "incident_key": "inc-orbit-003"
+        }
+      ]
+    }
+  ]
+}
