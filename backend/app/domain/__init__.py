@@ -1,4 +1,5 @@
-from app.domain.candidates import Candidate, CanonicalAssetRef
+from app.domain.assets import CanonicalAssetRef
+from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import (
     AssetCriticality,
     AssetLifecycleStatus,
@@ -12,7 +13,7 @@ from app.domain.enterprise_estate import (
     OwnershipRole,
     Team,
 )
-from app.domain.signals import Evidence, Signal
+from app.domain.signals import Evidence, Signal, SourceObservationRef
 
 __all__ = [
     "AssetCriticality",
@@ -29,5 +30,6 @@ __all__ = [
     "IncidentSeverity",
     "OwnershipRole",
     "Signal",
+    "SourceObservationRef",
     "Team",
 ]

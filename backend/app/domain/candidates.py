@@ -1,15 +1,7 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-
-@dataclass(frozen=True)
-class CanonicalAssetRef:
-    canonical_asset_id: UUID
-    asset_type: str
-
-    def __post_init__(self) -> None:
-        if not self.asset_type.strip():
-            raise ValueError("Canonical asset type must not be blank")
+from app.domain.assets import CanonicalAssetRef
 
 
 @dataclass(frozen=True)

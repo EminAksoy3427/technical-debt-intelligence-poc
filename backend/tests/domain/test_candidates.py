@@ -2,7 +2,9 @@ from uuid import UUID, uuid4
 
 import pytest
 
-from app.domain.candidates import Candidate, CanonicalAssetRef
+from app.domain.assets import CanonicalAssetRef
+from app.domain.candidates import Candidate
+from app.domain.enterprise_estate import AssetType
 from app.domain.signals import Signal
 
 
@@ -20,8 +22,8 @@ def create_candidate(
             evidence_ids if evidence_ids is not None else frozenset({uuid4()})
         ),
         canonical_asset=CanonicalAssetRef(
-            canonical_asset_id=uuid4(),
-            asset_type="repository",
+            asset_key="repo-synthetic",
+            asset_type=AssetType.REPOSITORY,
         ),
         hypothesis=hypothesis,
         correlation_rationale=correlation_rationale,
@@ -34,7 +36,8 @@ def test_valid_candidate_can_link_multiple_signals() -> None:
     candidate = create_candidate(signal_ids=signal_ids)
 
     assert candidate.signal_ids == signal_ids
-    assert candidate.canonical_asset.asset_type == "repository"
+    assert candidate.canonical_asset.asset_key == "repo-synthetic"
+    assert candidate.canonical_asset.asset_type is AssetType.REPOSITORY
 
 
 def test_candidate_is_separate_from_signal() -> None:
@@ -76,6 +79,6 @@ def test_candidate_normalizes_duplicate_linked_identifiers() -> None:
     assert candidate.evidence_ids == frozenset({evidence_id})
 
 
-def test_canonical_asset_reference_rejects_blank_asset_type() -> None:
-    with pytest.raises(ValueError, match="asset type"):
-        CanonicalAssetRef(canonical_asset_id=uuid4(), asset_type=" ")
+def test_canonical_asset_reference_rejects_blank_asset_key() -> None:
+    with pytest.raises(ValueError, match="asset key"):
+        CanonicalAssetRef(asset_key=" ", asset_type=AssetType.REPOSITORY)

@@ -3,6 +3,8 @@ from uuid import uuid4
 
 import pytest
 
+from app.domain.assets import CanonicalAssetRef
+from app.domain.enterprise_estate import AssetType
 from app.domain.signals import Evidence, Signal
 
 
@@ -42,8 +44,11 @@ def create_signal(
             else datetime(2026, 8, 26, 10, 35, tzinfo=UTC)
         ),
         signal_type=signal_type,
+        affected_asset=CanonicalAssetRef(
+            asset_key="repo-synthetic",
+            asset_type=AssetType.REPOSITORY,
+        ),
         severity="high",
-        asset_hint="repository/backend",
         evidence_ids=frozenset({uuid4()}),
     )
 
@@ -71,13 +76,19 @@ def test_valid_signal_retains_provenance_and_evidence_ids() -> None:
         source_record_id="finding-42",
         detected_at=datetime(2026, 8, 26, 10, 35, tzinfo=UTC),
         signal_type="python.lang.security.audit",
+        affected_asset=CanonicalAssetRef(
+            asset_key="repo-synthetic",
+            asset_type=AssetType.REPOSITORY,
+        ),
         severity="high",
-        asset_hint="repository/backend",
         evidence_ids=evidence_ids,
     )
 
     assert signal.source_system == "semgrep"
     assert signal.source_record_id == "finding-42"
+    assert signal.provenance.source_system == "semgrep"
+    assert signal.provenance.source_record_id == "finding-42"
+    assert signal.affected_asset.asset_key == "repo-synthetic"
     assert signal.evidence_ids == evidence_ids
 
 
