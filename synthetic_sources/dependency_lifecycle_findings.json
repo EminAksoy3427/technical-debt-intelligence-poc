@@ -1,0 +1,15 @@
+{
+  "source_name": "Synthetic Dependency Lifecycle Export",
+  "findings": [
+    {
+      "source_record_id": "dep-lifecycle-borealis-renderer-001",
+      "affected_asset_key": "repo-borealis-renderer",
+      "component_name": "fictional-render-exporter",
+      "component_version": "2.4.1",
+      "lifecycle_status": "END_OF_LIFE",
+      "eol_date": "2026-06-30",
+      "observed_at": "2026-08-01T10:00:00+00:00",
+      "message": "Synthetic lifecycle export reports fictional-render-exporter 2.4.1 as end of life."
+    }
+  ]
+}

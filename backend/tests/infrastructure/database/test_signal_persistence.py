@@ -14,6 +14,7 @@ from sqlalchemy import Engine, create_engine, event, func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.dependency_lifecycle_ingestion import normalize_dependency_lifecycle_finding
 from app.domain.assets import CanonicalAssetRef
 from app.domain.enterprise_estate import AssetType
 from app.domain.signals import Evidence, Signal, SourceObservationRef
@@ -26,6 +27,7 @@ from app.infrastructure.database.signal_persistence import (
     get_normalized_signal,
     persist_normalized_signal,
 )
+from app.infrastructure.dependency_lifecycle import load_dependency_lifecycle_findings
 from app.infrastructure.semgrep import SemgrepFinding
 from app.semgrep_ingestion import normalize_semgrep_finding
 from app.signal_ingestion import NormalizedSignal
@@ -372,3 +374,33 @@ def test_normalized_orbit_incidents_are_created_then_deduplicated(
         assert repeated_results == [SignalPersistenceResult.DUPLICATE] * 3
         assert _record_count(session, SignalModel) == 3
         assert _record_count(session, EvidenceModel) == 3
+
+
+def test_normalized_dependency_lifecycle_finding_is_created_then_deduplicated(
+    database_engine: Engine,
+) -> None:
+    source_path = (
+        Path(__file__).resolve().parents[4]
+        / "synthetic_sources"
+        / "dependency_lifecycle_findings.json"
+    )
+    finding = load_dependency_lifecycle_findings(source_path)[0]
+    normalized_signal = normalize_dependency_lifecycle_finding(
+        finding,
+        affected_asset=CanonicalAssetRef(
+            asset_key=finding.affected_asset_key,
+            asset_type=AssetType.REPOSITORY,
+        ),
+    )
+
+    with Session(database_engine) as session:
+        assert (
+            persist_normalized_signal(session, normalized_signal)
+            is SignalPersistenceResult.CREATED
+        )
+        assert (
+            persist_normalized_signal(session, normalized_signal)
+            is SignalPersistenceResult.DUPLICATE
+        )
+        assert _record_count(session, SignalModel) == 1
+        assert _record_count(session, EvidenceModel) == 1
