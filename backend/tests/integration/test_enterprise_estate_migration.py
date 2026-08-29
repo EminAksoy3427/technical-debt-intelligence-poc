@@ -14,6 +14,8 @@ EXPECTED_TABLES = {
     "asset_ownerships",
     "asset_relationships",
     "incidents",
+    "signals",
+    "evidence",
 }
 
 

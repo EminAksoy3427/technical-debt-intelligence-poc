@@ -16,6 +16,7 @@ from app.infrastructure.database.enterprise_estate_models import (
     IncidentModel,
     TeamModel,
 )
+from app.infrastructure.database.signal_models import EvidenceModel, SignalModel
 
 EXPECTED_TABLES = {
     "enterprise_assets",
@@ -23,6 +24,8 @@ EXPECTED_TABLES = {
     "asset_ownerships",
     "asset_relationships",
     "incidents",
+    "signals",
+    "evidence",
 }
 
 
@@ -35,7 +38,7 @@ def _unique_column_sets(table_name: str) -> set[frozenset[str]]:
     }
 
 
-def test_metadata_contains_expected_enterprise_estate_tables() -> None:
+def test_metadata_contains_expected_runtime_tables() -> None:
     assert EXPECTED_TABLES <= set(Base.metadata.tables)
 
 
@@ -140,7 +143,7 @@ def test_orm_relationships_link_enterprise_context_models() -> None:
     assert incident.primary_affected_asset is asset
 
 
-def test_alembic_revision_chains_from_baseline_and_compiles_for_mssql(
+def test_alembic_revision_chain_compiles_for_mssql(
     monkeypatch,
 ) -> None:
     backend_root = Path(__file__).resolve().parents[3]
@@ -148,18 +151,30 @@ def test_alembic_revision_chains_from_baseline_and_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260827_01"
-    assert head.down_revision == "20260826_01"
+    assert head.revision == "20260828_01"
+    assert head.down_revision == "20260827_01"
 
     output = StringIO()
     context = MigrationContext.configure(
         dialect_name="mssql",
         opts={"as_sql": True, "output_buffer": output},
     )
-    monkeypatch.setattr(head.module, "op", Operations(context))
+    operations = Operations(context)
+    revisions = list(scripts.walk_revisions(base="base", head="heads"))
+    for revision in reversed(revisions):
+        monkeypatch.setattr(revision.module, "op", operations, raising=False)
+        revision.module.upgrade()
 
-    head.module.upgrade()
+    assert SignalModel.__table__.name == "signals"
+    assert EvidenceModel.__table__.name == "evidence"
 
     migration_sql = output.getvalue()
     for table_name in EXPECTED_TABLES:
         assert f"CREATE TABLE {table_name}" in migration_sql
+
+    for revision in revisions:
+        revision.module.downgrade()
+
+    downgrade_sql = output.getvalue()
+    assert "DROP TABLE evidence" in downgrade_sql
+    assert "DROP TABLE signals" in downgrade_sql
