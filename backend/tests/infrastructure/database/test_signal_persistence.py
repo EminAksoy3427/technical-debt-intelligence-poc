@@ -24,6 +24,8 @@ from app.infrastructure.database.signal_persistence import (
     get_normalized_signal,
     persist_normalized_signal,
 )
+from app.infrastructure.semgrep import SemgrepFinding
+from app.semgrep_ingestion import normalize_semgrep_finding
 from app.signal_ingestion import NormalizedSignal
 
 
@@ -301,3 +303,35 @@ def test_ingestion_persistence_does_not_reference_candidates_or_ground_truth() -
 
     assert "candidate" not in persistence_source
     assert "ground_truth" not in persistence_source
+
+
+def test_normalized_semgrep_finding_is_created_then_deduplicated(
+    database_engine: Engine,
+) -> None:
+    finding = SemgrepFinding(
+        rule_id="tdi.python.missing-timeout",
+        relative_path="renderer_client.py",
+        start_line=5,
+        start_column=10,
+        end_line=5,
+        end_column=52,
+        message="A urllib request is made without an explicit timeout.",
+        severity="WARNING",
+    )
+    normalized_signal = normalize_semgrep_finding(
+        finding,
+        repository_asset_key="repo-borealis-renderer",
+        detected_at=datetime(2026, 8, 29, 12, 30, tzinfo=UTC),
+    )
+
+    with Session(database_engine) as session:
+        assert (
+            persist_normalized_signal(session, normalized_signal)
+            is SignalPersistenceResult.CREATED
+        )
+        assert (
+            persist_normalized_signal(session, normalized_signal)
+            is SignalPersistenceResult.DUPLICATE
+        )
+        assert _record_count(session, SignalModel) == 1
+        assert _record_count(session, EvidenceModel) == 1

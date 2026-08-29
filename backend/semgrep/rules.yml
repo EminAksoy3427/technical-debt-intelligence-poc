@@ -1,0 +1,39 @@
+rules:
+  - id: tdi.python.hardcoded-endpoint
+    languages:
+      - python
+    severity: WARNING
+    message: A network endpoint is hard-coded in Python source.
+    patterns:
+      - pattern: $NAME = "$URL"
+      - metavariable-regex:
+          metavariable: $URL
+          regex: ^https?://
+
+  - id: tdi.python.missing-timeout
+    languages:
+      - python
+    severity: WARNING
+    message: A urllib request is made without an explicit timeout.
+    patterns:
+      - pattern-either:
+          - pattern: urlopen(...)
+          - pattern: urllib.request.urlopen(...)
+      - pattern-not: urlopen(..., timeout=$TIMEOUT, ...)
+      - pattern-not: urllib.request.urlopen(..., timeout=$TIMEOUT, ...)
+
+  - id: tdi.python.process-local-state
+    languages:
+      - python
+    severity: WARNING
+    message: Mutable dictionary state is stored at Python module scope.
+    patterns:
+      - pattern-either:
+          - pattern: $STATE = {}
+          - pattern: "$STATE: $TYPE = {}"
+      - pattern-not-inside: |
+          def $FUNCTION(...):
+            ...
+      - pattern-not-inside: |
+          class $CLASS:
+            ...

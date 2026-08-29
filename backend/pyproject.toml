@@ -17,6 +17,7 @@ dev = [
     "httpx>=0.28.0",
     "pytest>=8.0.0",
     "ruff>=0.8.0",
+    "semgrep==1.175.0",
 ]
 
 [tool.pytest.ini_options]
