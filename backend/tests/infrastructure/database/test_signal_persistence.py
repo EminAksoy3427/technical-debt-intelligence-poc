@@ -19,6 +19,7 @@ from app.domain.assets import CanonicalAssetRef
 from app.domain.enterprise_estate import AssetType
 from app.domain.signals import Evidence, Signal, SourceObservationRef
 from app.domain.synthetic_enterprise_estate import SYNTHETIC_INCIDENTS
+from app.git_history_ingestion import scan_and_normalize_git_repository
 from app.incident_ingestion import normalize_incident
 from app.infrastructure.database.enterprise_estate_models import EnterpriseAssetModel
 from app.infrastructure.database.signal_models import EvidenceModel, SignalModel
@@ -400,6 +401,29 @@ def test_normalized_dependency_lifecycle_finding_is_created_then_deduplicated(
         )
         assert (
             persist_normalized_signal(session, normalized_signal)
+            is SignalPersistenceResult.DUPLICATE
+        )
+        assert _record_count(session, SignalModel) == 1
+        assert _record_count(session, EvidenceModel) == 1
+
+
+def test_normalized_git_finding_is_created_then_deduplicated(
+    database_engine: Engine,
+    controlled_git_repository,
+) -> None:
+    normalized_signals = scan_and_normalize_git_repository(
+        controlled_git_repository.path,
+        repository_asset_key="repo-borealis-renderer",
+    )
+
+    assert len(normalized_signals) == 1
+    with Session(database_engine) as session:
+        assert (
+            persist_normalized_signal(session, normalized_signals[0])
+            is SignalPersistenceResult.CREATED
+        )
+        assert (
+            persist_normalized_signal(session, normalized_signals[0])
             is SignalPersistenceResult.DUPLICATE
         )
         assert _record_count(session, SignalModel) == 1
