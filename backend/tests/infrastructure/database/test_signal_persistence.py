@@ -17,6 +17,8 @@ from sqlalchemy.orm import Session
 from app.domain.assets import CanonicalAssetRef
 from app.domain.enterprise_estate import AssetType
 from app.domain.signals import Evidence, Signal, SourceObservationRef
+from app.domain.synthetic_enterprise_estate import SYNTHETIC_INCIDENTS
+from app.incident_ingestion import normalize_incident
 from app.infrastructure.database.enterprise_estate_models import EnterpriseAssetModel
 from app.infrastructure.database.signal_models import EvidenceModel, SignalModel
 from app.infrastructure.database.signal_persistence import (
@@ -335,3 +337,38 @@ def test_normalized_semgrep_finding_is_created_then_deduplicated(
         )
         assert _record_count(session, SignalModel) == 1
         assert _record_count(session, EvidenceModel) == 1
+
+
+def test_normalized_orbit_incidents_are_created_then_deduplicated(
+    database_engine: Engine,
+) -> None:
+    orbit_incidents = tuple(
+        incident
+        for incident in SYNTHETIC_INCIDENTS
+        if incident.primary_affected_asset_key == "svc-orbit-catalog"
+    )
+    normalized_incidents = tuple(
+        normalize_incident(
+            incident,
+            primary_affected_asset=CanonicalAssetRef(
+                asset_key=incident.primary_affected_asset_key,
+                asset_type=AssetType.SERVICE,
+            ),
+        )
+        for incident in orbit_incidents
+    )
+
+    with Session(database_engine) as session:
+        first_results = [
+            persist_normalized_signal(session, normalized)
+            for normalized in normalized_incidents
+        ]
+        repeated_results = [
+            persist_normalized_signal(session, normalized)
+            for normalized in normalized_incidents
+        ]
+
+        assert first_results == [SignalPersistenceResult.CREATED] * 3
+        assert repeated_results == [SignalPersistenceResult.DUPLICATE] * 3
+        assert _record_count(session, SignalModel) == 3
+        assert _record_count(session, EvidenceModel) == 3
