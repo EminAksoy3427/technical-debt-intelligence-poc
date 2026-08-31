@@ -16,6 +16,8 @@ EXPECTED_TABLES = {
     "incidents",
     "signals",
     "evidence",
+    "candidates",
+    "candidate_signals",
 }
 
 

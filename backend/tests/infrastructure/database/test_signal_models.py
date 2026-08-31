@@ -55,7 +55,7 @@ def test_evidence_model_preserves_evidence_without_validation_fields() -> None:
     )
 
 
-def test_signal_and_evidence_models_have_no_candidate_relationship() -> None:
+def test_signal_and_evidence_models_have_no_direct_candidate_relationship() -> None:
     signal_foreign_keys = {
         foreign_key.target_fullname
         for foreign_key in SignalModel.__table__.foreign_keys
@@ -67,4 +67,3 @@ def test_signal_and_evidence_models_have_no_candidate_relationship() -> None:
 
     assert not any("candidate" in target for target in signal_foreign_keys)
     assert not any("candidate" in target for target in evidence_foreign_keys)
-    assert not any("candidate" in table_name for table_name in Base.metadata.tables)
