@@ -173,7 +173,9 @@ def _evidence_ids_for_signals(
 ) -> frozenset[UUID]:
     return frozenset(
         session.scalars(
-            select(EvidenceModel.evidence_id).where(EvidenceModel.signal_id.in_(signal_ids))
+            select(EvidenceModel.evidence_id).where(
+                EvidenceModel.signal_id.in_(signal_ids)
+            )
         )
     )
 

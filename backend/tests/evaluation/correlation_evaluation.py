@@ -77,9 +77,7 @@ class EvaluationGroup:
                 "An evaluation group must contain source observations"
             )
         if self.issue_family is not None and not self.issue_family.strip():
-            raise EvaluationDataError(
-                "An evaluation issue family must not be blank"
-            )
+            raise EvaluationDataError("An evaluation issue family must not be blank")
         object.__setattr__(self, "source_observations", observations)
 
 
@@ -111,13 +109,8 @@ def load_ground_truth_cases(path: Path) -> tuple[GroundTruthCase, ...]:
     cases = tuple(_parse_ground_truth_case(value) for value in raw_cases)
     if len({case.case_key for case in cases}) != len(cases):
         raise EvaluationDataError("Ground truth case keys must be unique")
-    if (
-        len({case.expected_candidate_group_key for case in cases})
-        != len(cases)
-    ):
-        raise EvaluationDataError(
-            "Expected candidate group keys must be unique"
-        )
+    if len({case.expected_candidate_group_key for case in cases}) != len(cases):
+        raise EvaluationDataError("Expected candidate group keys must be unique")
     return cases
 
 
@@ -178,8 +171,7 @@ def expected_groups(
     groups: list[EvaluationGroup] = []
     for resolved_case in resolved_cases:
         assets = {
-            item.signal.affected_asset
-            for item in resolved_case.normalized_signals
+            item.signal.affected_asset for item in resolved_case.normalized_signals
         }
         if len(assets) != 1:
             raise EvaluationDataError(
@@ -187,10 +179,7 @@ def expected_groups(
                 "to one canonical asset"
             )
         canonical_asset = next(iter(assets))
-        if (
-            canonical_asset.asset_key
-            != resolved_case.ground_truth.expected_asset_key
-        ):
+        if canonical_asset.asset_key != resolved_case.ground_truth.expected_asset_key:
             raise EvaluationDataError(
                 f"Case {resolved_case.ground_truth.case_key} expected asset "
                 f"{resolved_case.ground_truth.expected_asset_key}, but resolved "
@@ -201,8 +190,7 @@ def expected_groups(
                 canonical_asset=canonical_asset,
                 issue_family=resolved_case.ground_truth.issue_family,
                 source_observations=frozenset(
-                    item.provenance
-                    for item in resolved_case.normalized_signals
+                    item.provenance for item in resolved_case.normalized_signals
                 ),
             )
         )
@@ -226,8 +214,7 @@ def predicted_groups(
     for candidate in candidates:
         try:
             contributing_signals = tuple(
-                signals_by_id[signal_id]
-                for signal_id in candidate.signal_ids
+                signals_by_id[signal_id] for signal_id in candidate.signal_ids
             )
         except KeyError as error:
             raise EvaluationDataError(
@@ -264,17 +251,11 @@ def evaluate_groups(
 
     expected_counts = Counter(expected)
     predicted_counts = Counter(predicted)
-    true_positive_count = sum(
-        (expected_counts & predicted_counts).values()
-    )
+    true_positive_count = sum((expected_counts & predicted_counts).values())
     false_positive_count = len(predicted) - true_positive_count
     false_negative_count = len(expected) - true_positive_count
-    precision = true_positive_count / (
-        true_positive_count + false_positive_count
-    )
-    recall = true_positive_count / (
-        true_positive_count + false_negative_count
-    )
+    precision = true_positive_count / (true_positive_count + false_positive_count)
+    recall = true_positive_count / (true_positive_count + false_negative_count)
     return CorrelationEvaluationResult(
         expected_group_count=len(expected),
         predicted_group_count=len(predicted),
@@ -291,9 +272,7 @@ def _parse_ground_truth_case(value: object) -> GroundTruthCase:
         raise EvaluationDataError("Ground truth case has an unexpected schema")
     raw_source_refs = value["source_refs"]
     if not isinstance(raw_source_refs, list) or not raw_source_refs:
-        raise EvaluationDataError(
-            "Ground truth source_refs must be a non-empty array"
-        )
+        raise EvaluationDataError("Ground truth source_refs must be a non-empty array")
     return GroundTruthCase(
         case_key=_required_string(value, "case_key"),
         expected_candidate_group_key=_required_string(
@@ -323,9 +302,7 @@ def _parse_source_ref(value: object) -> EvaluationSourceRef:
         "source_type",
         "incident_key",
     }:
-        return IncidentSourceRef(
-            incident_key=_required_string(value, "incident_key")
-        )
+        return IncidentSourceRef(incident_key=_required_string(value, "incident_key"))
     raise EvaluationDataError(
         f"Ground truth source_ref has an unexpected {source_type} schema"
     )
@@ -393,8 +370,7 @@ def _predicted_issue_family(
 ) -> str | None:
     signals = tuple(item.signal for item in normalized_signals)
     if not signals or any(
-        signal.affected_asset != candidate.canonical_asset
-        for signal in signals
+        signal.affected_asset != candidate.canonical_asset for signal in signals
     ):
         return None
 
@@ -409,10 +385,7 @@ def _predicted_issue_family(
 
     signal_types = {signal.signal_type for signal in signals}
     if (
-        all(
-            signal.source_system != _INCIDENT_SOURCE_SYSTEM
-            for signal in signals
-        )
+        all(signal.source_system != _INCIDENT_SOURCE_SYSTEM for signal in signals)
         and len(signal_types) == 1
     ):
         return next(iter(signal_types))

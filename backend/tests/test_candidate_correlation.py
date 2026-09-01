@@ -201,9 +201,7 @@ def test_operational_incidents_on_different_assets_never_correlate() -> None:
         _operational_incident(4, asset_key="service-orders"),
     )
 
-    candidates = correlate_candidates(
-        (*first_asset_incidents, *second_asset_incidents)
-    )
+    candidates = correlate_candidates((*first_asset_incidents, *second_asset_incidents))
 
     assert len(candidates) == 2
     assert {candidate.signal_ids for candidate in candidates} == {

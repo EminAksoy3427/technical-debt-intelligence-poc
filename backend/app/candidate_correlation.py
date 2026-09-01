@@ -37,8 +37,7 @@ def correlate_candidates(
         )
         evidence_by_signal = grouped_evidence.setdefault(group_key, {})
         evidence_by_signal[signal.signal_id] = (
-            evidence_by_signal.get(signal.signal_id, frozenset())
-            | signal.evidence_ids
+            evidence_by_signal.get(signal.signal_id, frozenset()) | signal.evidence_ids
         )
 
     candidates: list[Candidate] = []
@@ -53,10 +52,7 @@ def correlate_candidates(
         asset_type, asset_key, problem_family = group_key
         signal_ids = frozenset(evidence_by_signal)
 
-        if (
-            problem_family == _RECURRING_INCIDENT_PROBLEM_FAMILY
-            and len(signal_ids) < 2
-        ):
+        if problem_family == _RECURRING_INCIDENT_PROBLEM_FAMILY and len(signal_ids) < 2:
             continue
 
         evidence_ids = frozenset(
@@ -122,10 +118,7 @@ def _candidate_id(
 
 def _hypothesis(*, asset_key: str, problem_family: str) -> str:
     if problem_family == _RECURRING_INCIDENT_PROBLEM_FAMILY:
-        return (
-            "Potential recurring operational incident pattern affecting "
-            f"{asset_key}"
-        )
+        return f"Potential recurring operational incident pattern affecting {asset_key}"
     return f"Potential {problem_family} issue affecting {asset_key}"
 
 

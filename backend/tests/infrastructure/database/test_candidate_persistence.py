@@ -130,9 +130,7 @@ def _candidate(
         signal_ids=frozenset(item.signal.signal_id for item in signals),
         evidence_ids=evidence_ids
         or frozenset(
-            evidence_id
-            for item in signals
-            for evidence_id in item.signal.evidence_ids
+            evidence_id for item in signals for evidence_id in item.signal.evidence_ids
         ),
         canonical_asset=CanonicalAssetRef(asset_key=asset_key, asset_type=asset_type),
         hypothesis=hypothesis,
@@ -155,8 +153,7 @@ def test_candidate_persists_and_loads_the_canonical_contract(
         )
 
         assert (
-            persist_candidate(session, candidate)
-            is CandidatePersistenceResult.CREATED
+            persist_candidate(session, candidate) is CandidatePersistenceResult.CREATED
         )
         session.commit()
 
@@ -177,8 +174,7 @@ def test_exact_candidate_snapshot_is_unchanged_and_does_not_commit(
         signal = _persist_signal(session)
         candidate = _candidate(signal)
         assert (
-            persist_candidate(session, candidate)
-            is CandidatePersistenceResult.CREATED
+            persist_candidate(session, candidate) is CandidatePersistenceResult.CREATED
         )
         session.commit()
 
@@ -198,8 +194,7 @@ def test_candidate_snapshot_updates_and_synchronizes_membership(
         second_signal = _persist_signal(session, source_record_id="signal-second")
         candidate = _candidate(first_signal)
         assert (
-            persist_candidate(session, candidate)
-            is CandidatePersistenceResult.CREATED
+            persist_candidate(session, candidate) is CandidatePersistenceResult.CREATED
         )
 
         expanded = _candidate(
@@ -208,8 +203,7 @@ def test_candidate_snapshot_updates_and_synchronizes_membership(
             candidate_id=candidate.candidate_id,
         )
         assert (
-            persist_candidate(session, expanded)
-            is CandidatePersistenceResult.UPDATED
+            persist_candidate(session, expanded) is CandidatePersistenceResult.UPDATED
         )
         assert load_candidate(session, candidate.candidate_id) == expanded
 
@@ -224,9 +218,10 @@ def test_candidate_membership_is_normalized_and_foreign_key_constrained(
 ) -> None:
     table = CandidateSignalModel.__table__
     assert set(table.columns.keys()) == {"candidate_id", "signal_id"}
-    assert {
-        foreign_key.target_fullname for foreign_key in table.foreign_keys
-    } == {"candidates.candidate_id", "signals.signal_id"}
+    assert {foreign_key.target_fullname for foreign_key in table.foreign_keys} == {
+        "candidates.candidate_id",
+        "signals.signal_id",
+    }
 
     with Session(database_engine) as session:
         session.add(CandidateSignalModel(candidate_id=uuid4(), signal_id=uuid4()))
@@ -271,8 +266,7 @@ def test_conflicting_candidate_asset_is_rejected(
         )
         candidate = _candidate(repository_signal)
         assert (
-            persist_candidate(session, candidate)
-            is CandidatePersistenceResult.CREATED
+            persist_candidate(session, candidate) is CandidatePersistenceResult.CREATED
         )
 
         conflicting = _candidate(
@@ -293,8 +287,7 @@ def test_candidate_persistence_is_deterministic_and_creates_no_lifecycle_state(
         candidate = _candidate(signal)
 
         assert (
-            persist_candidate(session, candidate)
-            is CandidatePersistenceResult.CREATED
+            persist_candidate(session, candidate) is CandidatePersistenceResult.CREATED
         )
         assert (
             persist_candidate(session, candidate)
