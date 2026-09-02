@@ -21,47 +21,53 @@ export const candidatePoolAssetTypeLabels: Record<AssetType, string> = {
 }
 
 /**
- * Presentation-only review status for the mock Candidate Detail view.
- * The Candidate Pool does not use this field.
+ * Factual Candidate identity for the Detail view.
+ * Mapped from CandidateDetailResponse. This is not TechnicalDebt and does not
+ * represent validation, risk, effort, priority, or ownership decisions.
  */
-export type CandidateReviewStatus = 'awaiting_review' | 'needs_information'
-
-/**
- * Presentation-only asset vocabulary for the mock Candidate Detail view.
- * The Candidate Pool uses AssetType from the Candidate list API instead.
- */
-export type CandidateAssetType = 'application' | 'service' | 'data_store'
-
-/**
- * Presentation-only enterprise context for a Candidate under review.
- * Asset criticality provides asset context; it is not a technical-debt risk score.
- */
-export interface CandidateContextSummary {
-  assetCriticality: 'low' | 'medium' | 'high'
-  dependencySummary: string
+export interface CandidateDetailCore {
+  candidateId: string
+  hypothesis: string
+  canonicalAssetKey: string
+  canonicalAssetType: AssetType
+  assetDisplayName: string
+  correlationRationale: string
 }
 
 /**
- * Presentation-only evidence summary supporting Candidate review.
- * This is not a canonical backend evidence contract.
+ * Factual Signal membership for the Candidate Detail view.
+ * A Signal is not a Candidate and does not prove Candidate validity.
+ */
+export interface CandidateSignalItem {
+  signalId: string
+  signalType: string
+  sourceSystem: string
+  sourceRecordId: string
+  affectedAssetKey: string
+  affectedAssetType: AssetType
+  detectedAt: string
+  severity: string | null
+}
+
+/**
+ * Factual Evidence provenance for the Candidate Detail view.
+ * Evidence is not validation.
  */
 export interface CandidateEvidenceItem {
-  id: string
-  sourceLabel: string
-  summary: string
+  evidenceId: string
+  sourceSystem: string
+  sourceReference: string
+  capturedAt: string
+  referenceUri: string | null
 }
 
 /**
- * Presentation model for the Candidate Detail view.
- * It remains distinct from the canonical backend Candidate contract and TechnicalDebt.
+ * Factual D1 presentation model for Candidate Detail.
+ * Enterprise ownership, relationships, incidents, and dependency context
+ * are deferred to FP-01B-D2.
  */
-export interface CandidateDetailView {
-  id: string
-  title: string
-  reviewStatus: CandidateReviewStatus
-  assetName: string
-  assetType: CandidateAssetType
-  suggestedTeam: string
-  context: CandidateContextSummary
+export interface CandidateDetailPresentation {
+  candidate: CandidateDetailCore
+  signals: CandidateSignalItem[]
   evidence: CandidateEvidenceItem[]
 }

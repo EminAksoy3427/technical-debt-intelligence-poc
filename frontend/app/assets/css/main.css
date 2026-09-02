@@ -278,7 +278,8 @@ a {
   font-weight: 600;
 }
 
-.candidate-pool-status {
+.candidate-pool-status,
+.candidate-detail-message {
   margin: var(--space-3) 0 0;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
@@ -333,7 +334,6 @@ a {
 }
 
 .candidate-detail-list dt,
-.candidate-evidence-source,
 .candidate-evidence-id {
   color: var(--color-muted);
   font-size: 0.8125rem;
@@ -345,19 +345,24 @@ a {
   line-height: 1.5;
 }
 
-.candidate-criticality {
-  text-transform: capitalize;
+.candidate-breakable {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.candidate-context-note,
-.candidate-section-introduction {
+.candidate-section-introduction,
+.candidate-correlation-rationale {
   margin: var(--space-2) 0 0;
   color: var(--color-muted);
   font-size: 0.9375rem;
   line-height: 1.5;
 }
 
-.candidate-evidence-list {
+.candidate-correlation-rationale {
+  color: var(--color-ink);
+}
+
+.candidate-membership-list {
   display: grid;
   gap: var(--space-2);
   margin: var(--space-2) 0 0;
@@ -365,19 +370,21 @@ a {
   list-style: none;
 }
 
-.candidate-evidence-list li {
+.candidate-membership-list li {
   padding-top: var(--space-2);
   border-top: 1px solid var(--color-border);
 }
 
-.candidate-evidence-source,
-.candidate-evidence-summary {
-  margin: 0;
+.candidate-reference-link {
+  color: var(--color-primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.candidate-evidence-summary {
-  margin-top: 0.25rem;
-  line-height: 1.5;
+.candidate-reference-link:hover {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
 }
 
 .candidate-evidence-id {
