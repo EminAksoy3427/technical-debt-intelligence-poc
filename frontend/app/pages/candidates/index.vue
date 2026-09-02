@@ -1,17 +1,37 @@
 <script setup lang="ts">
-import { mockCandidates } from '~/mocks/candidates'
-import type { CandidateAssetType, CandidateReviewStatus } from '~/types/candidate'
+import type { AssetType } from '~/types/candidateApi'
+import { candidatePoolAssetTypeLabels } from '~/types/candidate'
 import { filterCandidates } from '~/utils/filterCandidates'
+import { toCandidateListItem } from '~/utils/mapCandidateSummary'
+import { resolveCandidatePoolViewState } from '~/utils/resolveCandidatePoolViewState'
+
+const { getCandidates } = useCandidateApi()
+
+const { data, pending, error } = await useAsyncData(
+  'candidate-pool',
+  () => getCandidates(),
+  { server: false },
+)
 
 const search = ref('')
-const reviewStatus = ref<CandidateReviewStatus | ''>('')
-const assetType = ref<CandidateAssetType | ''>('')
+const assetType = ref<AssetType | ''>('')
+
+const candidates = computed(() => (data.value?.items ?? []).map(toCandidateListItem))
 
 const filteredCandidates = computed(() =>
-  filterCandidates(mockCandidates, {
+  filterCandidates(candidates.value, {
     search: search.value,
-    reviewStatus: reviewStatus.value,
     assetType: assetType.value,
+  }),
+)
+
+const viewState = computed(() =>
+  resolveCandidatePoolViewState({
+    pending: pending.value,
+    hasError: Boolean(error.value),
+    hasListResponse: data.value != null,
+    candidateCount: candidates.value.length,
+    filteredCount: filteredCandidates.value.length,
   }),
 )
 </script>
@@ -21,48 +41,56 @@ const filteredCandidates = computed(() =>
     <p class="eyebrow">Technical debt governance</p>
     <h1 id="candidates-title">Candidates</h1>
     <p class="page-introduction">
-      Review technical-debt candidates supported by available evidence.
+      Evidence-supported Candidate records. These are Candidates, not validated TechnicalDebt.
     </p>
 
     <div class="candidate-pool">
       <div class="candidate-pool-heading">
-        <h2>Candidate pool</h2>
-        <p>Candidate records are awaiting governance review or need further information.</p>
+        <h2>Candidate Pool</h2>
+        <p>Deterministically correlated Candidates supported by available evidence.</p>
       </div>
 
-      <form class="candidate-filters" @submit.prevent>
-        <label class="filter-field filter-field--search">
-          <span>Search candidates</span>
-          <input v-model="search" type="search" placeholder="Title or affected asset" />
-        </label>
-
-        <label class="filter-field">
-          <span>Review status</span>
-          <select v-model="reviewStatus">
-            <option value="">All statuses</option>
-            <option value="awaiting_review">Awaiting review</option>
-            <option value="needs_information">Needs information</option>
-          </select>
-        </label>
-
-        <label class="filter-field">
-          <span>Asset type</span>
-          <select v-model="assetType">
-            <option value="">All asset types</option>
-            <option value="application">Application</option>
-            <option value="service">Service</option>
-            <option value="data_store">Data store</option>
-          </select>
-        </label>
-      </form>
-
-      <CandidatePoolTable
-        v-if="filteredCandidates.length"
-        :candidates="filteredCandidates"
-      />
-      <p v-else class="filtered-empty-result" role="status">
-        No candidates match the current filters.
+      <p v-if="viewState === 'loading'" class="candidate-pool-status" role="status">
+        Loading candidates.
       </p>
+
+      <p v-else-if="viewState === 'error'" class="candidate-pool-status" role="alert">
+        Candidates could not be loaded.
+      </p>
+
+      <template v-else>
+        <form class="candidate-filters" @submit.prevent>
+          <label class="filter-field filter-field--search">
+            <span>Search candidates</span>
+            <input v-model="search" type="search" placeholder="Hypothesis or asset name" />
+          </label>
+
+          <label class="filter-field">
+            <span>Asset type</span>
+            <select v-model="assetType">
+              <option value="">All asset types</option>
+              <option
+                v-for="(label, type) in candidatePoolAssetTypeLabels"
+                :key="type"
+                :value="type"
+              >
+                {{ label }}
+              </option>
+            </select>
+          </label>
+        </form>
+
+        <CandidatePoolTable
+          v-if="viewState === 'ready'"
+          :candidates="filteredCandidates"
+        />
+        <p v-else-if="viewState === 'empty'" class="candidate-pool-status" role="status">
+          No Candidates are currently available.
+        </p>
+        <p v-else-if="viewState === 'filtered-empty'" class="candidate-pool-status" role="status">
+          No Candidates match the current filters.
+        </p>
+      </template>
     </div>
   </section>
 </template>

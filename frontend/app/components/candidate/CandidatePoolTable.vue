@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { CandidateListItem } from '~/types/candidate'
+import { candidatePoolAssetTypeLabels, type CandidateListItem } from '~/types/candidate'
 
 defineProps<{
   candidates: CandidateListItem[]
@@ -13,8 +13,6 @@ defineProps<{
         <tr>
           <th scope="col">Candidate</th>
           <th scope="col">Affected asset</th>
-          <th scope="col">Review status</th>
-          <th scope="col">Suggested team</th>
           <th scope="col">Signals</th>
           <th scope="col">Evidence</th>
         </tr>
@@ -29,12 +27,10 @@ defineProps<{
           </th>
           <td>
             <span>{{ candidate.assetName }}</span>
-            <span class="candidate-asset-type">{{ candidate.assetType.replace('_', ' ') }}</span>
+            <span class="candidate-asset-type">{{ candidatePoolAssetTypeLabels[candidate.assetType] }}</span>
           </td>
-          <td><CandidateStatusBadge :status="candidate.reviewStatus" /></td>
-          <td>{{ candidate.suggestedTeam }}</td>
-          <td><span class="count-value">{{ candidate.contributingSignalCount }}</span></td>
-          <td><span class="count-value">{{ candidate.evidenceItemCount }}</span></td>
+          <td><span class="count-value">{{ candidate.signalCount }}</span></td>
+          <td><span class="count-value">{{ candidate.evidenceCount }}</span></td>
         </tr>
       </tbody>
     </table>

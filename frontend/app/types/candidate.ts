@@ -1,21 +1,36 @@
+import type { AssetType } from './candidateApi'
+
 /**
  * Frontend presentation model for the Candidate Pool.
- * This is not the canonical backend Candidate contract.
+ * Mapped from CandidateSummaryResponse for pool display and client-side filtering.
+ * This is not the canonical backend Candidate contract and is not TechnicalDebt.
  */
-export type CandidateReviewStatus = 'awaiting_review' | 'needs_information'
-
-export type CandidateAssetType = 'application' | 'service' | 'data_store'
-
 export interface CandidateListItem {
   id: string
   title: string
   assetName: string
-  assetType: CandidateAssetType
-  reviewStatus: CandidateReviewStatus
-  suggestedTeam: string
-  contributingSignalCount: number
-  evidenceItemCount: number
+  assetType: AssetType
+  signalCount: number
+  evidenceCount: number
 }
+
+export const candidatePoolAssetTypeLabels: Record<AssetType, string> = {
+  APPLICATION: 'Application',
+  SERVICE: 'Service',
+  REPOSITORY: 'Repository',
+}
+
+/**
+ * Presentation-only review status for the mock Candidate Detail view.
+ * The Candidate Pool does not use this field.
+ */
+export type CandidateReviewStatus = 'awaiting_review' | 'needs_information'
+
+/**
+ * Presentation-only asset vocabulary for the mock Candidate Detail view.
+ * The Candidate Pool uses AssetType from the Candidate list API instead.
+ */
+export type CandidateAssetType = 'application' | 'service' | 'data_store'
 
 /**
  * Presentation-only enterprise context for a Candidate under review.
