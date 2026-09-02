@@ -50,6 +50,9 @@ describe('Candidate Detail route source', () => {
     expect(detailPage).toContain('presentation.candidate.correlationRationale')
     expect(detailPage).toContain('CandidateSignalList')
     expect(detailPage).toContain('CandidateEvidenceList')
+    expect(detailPage.indexOf('CandidateEvidenceList')).toBeLessThan(
+      detailPage.indexOf('CandidateSignalList'),
+    )
     expect(detailPage).toContain("viewState === 'loading'")
     expect(detailPage).toContain("viewState === 'not-found'")
     expect(detailPage).toContain("viewState === 'invalid-identifier'")

@@ -27,6 +27,37 @@ export const candidatePoolAssetTypeLabels: Record<AssetType, string> = {
   REPOSITORY: 'Repository',
 }
 
+export const candidateAssetCriticalityLabels: Record<AssetCriticality, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  CRITICAL: 'Critical',
+}
+
+export const candidateAssetLifecycleStatusLabels: Record<AssetLifecycleStatus, string> = {
+  PLANNED: 'Planned',
+  ACTIVE: 'Active',
+  RETIRED: 'Retired',
+}
+
+export const candidateOwnershipRoleLabels: Record<OwnershipRole, string> = {
+  PRIMARY: 'Primary',
+  SUPPORTING: 'Supporting',
+}
+
+export const candidateRelationshipTypeLabels: Record<AssetRelationshipType, string> = {
+  CONTAINS: 'Contains',
+  IMPLEMENTED_BY: 'Implemented by',
+  DEPENDS_ON: 'Depends on',
+}
+
+export const candidateIncidentSeverityLabels: Record<IncidentSeverity, string> = {
+  LOW: 'Low',
+  MEDIUM: 'Medium',
+  HIGH: 'High',
+  CRITICAL: 'Critical',
+}
+
 /**
  * Factual Candidate identity for the Detail view.
  * Mapped from CandidateDetailResponse. This is not TechnicalDebt and does not

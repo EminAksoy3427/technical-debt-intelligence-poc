@@ -58,6 +58,7 @@ describe('Candidate Detail D2 semantic copy', () => {
   it('labels criticality as asset criticality and lifecycle as asset lifecycle', () => {
     expect(detailPage).toContain('Asset criticality')
     expect(detailPage).toContain('Asset lifecycle status')
+    expect(detailPage).toContain('This is a Candidate, not validated TechnicalDebt.')
     expect(headingAndLabelText(detailPage)).not.toContain('Candidate risk')
     expect(headingAndLabelText(detailPage)).not.toContain('Technical debt risk')
   })

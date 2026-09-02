@@ -1,5 +1,9 @@
 <script setup lang="ts">
-import { candidatePoolAssetTypeLabels } from '~/types/candidate'
+import {
+  candidateAssetCriticalityLabels,
+  candidateAssetLifecycleStatusLabels,
+  candidatePoolAssetTypeLabels,
+} from '~/types/candidate'
 import { toCandidateDetailPresentation } from '~/utils/mapCandidateDetail'
 import { resolveCandidateDetailViewState } from '~/utils/resolveCandidateDetailViewState'
 
@@ -58,51 +62,46 @@ const presentation = computed(() => {
     </template>
 
     <template v-else-if="presentation">
-      <p class="eyebrow">Candidate</p>
-      <h1 id="candidate-title">{{ presentation.candidate.hypothesis }}</h1>
-      <p class="page-introduction">
-        This record is a Candidate, not validated TechnicalDebt.
-      </p>
+      <header class="candidate-summary">
+        <p class="eyebrow">Candidate</p>
+        <h1 id="candidate-title">{{ presentation.candidate.hypothesis }}</h1>
+        <p class="candidate-identifier">
+          <span class="candidate-id-label">Candidate ID</span>
+          {{ presentation.candidate.candidateId }}
+        </p>
+        <p class="candidate-summary-note">
+          This is a Candidate, not validated TechnicalDebt.
+        </p>
 
-      <section class="candidate-detail-section" aria-labelledby="candidate-identity-heading">
-        <h2 id="candidate-identity-heading">Candidate identity</h2>
-        <dl class="candidate-detail-list">
+        <dl class="candidate-summary-facts">
           <div>
-            <dt>Candidate ID</dt>
-            <dd class="candidate-breakable">{{ presentation.candidate.candidateId }}</dd>
-          </div>
-          <div>
-            <dt>Hypothesis</dt>
-            <dd>{{ presentation.candidate.hypothesis }}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="candidate-detail-section" aria-labelledby="candidate-asset-heading">
-        <h2 id="candidate-asset-heading">Affected asset</h2>
-        <dl class="candidate-detail-list">
-          <div>
-            <dt>Asset name</dt>
-            <dd>{{ presentation.candidate.assetDisplayName }}</dd>
-          </div>
-          <div>
-            <dt>Asset key</dt>
-            <dd class="candidate-breakable">{{ presentation.candidate.canonicalAssetKey }}</dd>
-          </div>
-          <div>
-            <dt>Asset type</dt>
-            <dd>{{ candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType] }}</dd>
+            <dt>Affected asset</dt>
+            <dd>
+              <span class="candidate-asset-name">{{ presentation.candidate.assetDisplayName }}</span>
+              <span class="badge badge--neutral">{{
+                candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType]
+              }}</span>
+              <span class="candidate-identifier">{{ presentation.candidate.canonicalAssetKey }}</span>
+            </dd>
           </div>
           <div>
             <dt>Asset criticality</dt>
-            <dd>{{ presentation.enterpriseContext.asset.criticality }}</dd>
+            <dd>
+              <span class="badge badge--neutral">{{
+                candidateAssetCriticalityLabels[presentation.enterpriseContext.asset.criticality]
+              }}</span>
+            </dd>
           </div>
           <div>
             <dt>Asset lifecycle status</dt>
-            <dd>{{ presentation.enterpriseContext.asset.lifecycleStatus }}</dd>
+            <dd>
+              <span class="badge badge--neutral">{{
+                candidateAssetLifecycleStatusLabels[presentation.enterpriseContext.asset.lifecycleStatus]
+              }}</span>
+            </dd>
           </div>
         </dl>
-      </section>
+      </header>
 
       <section class="candidate-detail-section" aria-labelledby="candidate-correlation-heading">
         <h2 id="candidate-correlation-heading">Correlation rationale</h2>
@@ -112,9 +111,13 @@ const presentation = computed(() => {
         <p class="candidate-correlation-rationale">{{ presentation.candidate.correlationRationale }}</p>
       </section>
 
-      <CandidateSignalList :signals="presentation.signals" />
-      <CandidateEvidenceList :evidence="presentation.evidence" />
+      <div class="layout-columns candidate-detail-columns">
+        <CandidateEvidenceList :evidence="presentation.evidence" />
+        <CandidateSignalList :signals="presentation.signals" />
+      </div>
+
       <CandidateEnterpriseContext
+        :asset="presentation.enterpriseContext.asset"
         :ownerships="presentation.enterpriseContext.ownerships"
         :relationships="presentation.enterpriseContext.relationships"
         :incidents="presentation.enterpriseContext.incidents"
