@@ -34,21 +34,41 @@ const viewState = computed(() =>
     filteredCount: filteredCandidates.value.length,
   }),
 )
+
+const displayedCandidateCountLabel = computed(() => {
+  const count = filteredCandidates.value.length
+  const noun = count === 1 ? 'Candidate' : 'Candidates'
+  return `${count} ${noun} displayed`
+})
 </script>
 
 <template>
   <section class="page-section" aria-labelledby="candidates-title">
-    <p class="eyebrow">Technical debt governance</p>
-    <h1 id="candidates-title">Candidates</h1>
-    <p class="page-introduction">
-      Evidence-supported Candidate records. These are Candidates, not validated TechnicalDebt.
-    </p>
+    <header class="page-header">
+      <p class="eyebrow">Technical Debt Governance</p>
+      <h1 id="candidates-title">Candidates</h1>
+      <p class="page-introduction">
+        Evidence-supported Candidates awaiting later governance validation.
+      </p>
+    </header>
 
     <div class="candidate-pool">
       <div class="candidate-pool-heading">
-        <h2>Candidate Pool</h2>
-        <p>Deterministically correlated Candidates supported by available evidence.</p>
+        <div class="candidate-pool-heading-copy">
+          <h2>Candidate Pool</h2>
+          <p>Deterministically correlated Candidates supported by available evidence.</p>
+        </div>
+        <p
+          v-if="viewState === 'ready' || viewState === 'filtered-empty'"
+          class="candidate-pool-result-count"
+        >
+          {{ displayedCandidateCountLabel }}
+        </p>
       </div>
+
+      <p class="candidate-pool-note">
+        Candidates are not validated TechnicalDebt records.
+      </p>
 
       <p v-if="viewState === 'loading'" class="candidate-pool-status" role="status">
         Loading candidates.

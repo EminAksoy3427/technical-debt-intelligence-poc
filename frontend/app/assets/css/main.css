@@ -98,6 +98,7 @@ a {
 .application-shell {
   display: flex;
   flex-direction: column;
+  min-width: 0;
   min-height: 100vh;
 }
 
@@ -214,7 +215,8 @@ a {
 .page-section,
 .candidate-detail {
   width: 100%;
-  max-width: none;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .page-header {
@@ -310,8 +312,12 @@ a {
   letter-spacing: -0.01em;
 }
 
+.candidate-pool-heading h2 {
+  font-size: 1.25rem;
+}
+
 .section-header p,
-.candidate-pool-heading p {
+.candidate-pool-heading-copy p {
   margin: var(--space-1) 0 0;
   color: var(--color-muted);
   font-size: 0.9375rem;
@@ -334,22 +340,69 @@ a {
 }
 
 .candidate-pool {
-  margin-top: var(--space-4);
+  min-width: 0;
+  max-width: 100%;
+}
+
+.candidate-pool-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.candidate-pool-heading-copy {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.candidate-pool-result-count {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.candidate-pool-note {
+  margin: var(--space-2) 0 0;
+  max-width: 42rem;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  line-height: var(--line-body);
 }
 
 .candidate-filters {
-  display: grid;
-  grid-template-columns: minmax(14rem, 2fr) minmax(10rem, 1fr);
-  gap: var(--space-2);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2) var(--space-3);
   margin: var(--space-3) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
 }
 
 .filter-field {
   display: grid;
   gap: 0.375rem;
+  min-width: 0;
   color: var(--color-ink);
   font-size: 0.875rem;
   font-weight: 600;
+}
+
+.filter-field--search {
+  flex: 1 1 18rem;
+  max-width: 32rem;
+}
+
+.filter-field:not(.filter-field--search) {
+  flex: 0 1 14rem;
+  width: 14rem;
 }
 
 .filter-field input,
@@ -372,6 +425,10 @@ a {
 
 .table-wrapper,
 .candidate-table-wrapper {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
@@ -396,6 +453,11 @@ a {
   vertical-align: middle;
 }
 
+.candidate-table th,
+.candidate-table td {
+  padding: 1rem var(--space-3);
+}
+
 .data-table thead th,
 .candidate-table thead th {
   background: var(--color-surface-subtle);
@@ -414,31 +476,54 @@ a {
 }
 
 .data-table tbody tr:hover,
-.candidate-table tbody tr:hover {
+.candidate-table tbody tr:hover,
+.candidate-table tbody tr:focus-within {
   background: var(--color-surface-subtle);
 }
 
+.candidate-table tbody tr:focus-within {
+  box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
 .candidate-table tbody th {
-  min-width: 15rem;
+  min-width: 18rem;
   font-weight: 400;
 }
 
-.candidate-identifier,
-.candidate-asset-type {
-  display: block;
-  color: var(--color-muted);
-  font-size: 0.8125rem;
+.candidate-table .col-count,
+.candidate-table .col-action {
+  width: 1%;
+  white-space: nowrap;
+}
+
+.candidate-table .col-count {
+  text-align: center;
+}
+
+.candidate-table .col-action {
+  text-align: right;
 }
 
 .candidate-title {
   display: block;
-  margin-top: 0.25rem;
   font-weight: 600;
   line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.candidate-identifier {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .candidate-link {
   display: block;
+  max-width: 42rem;
   border-radius: var(--radius-sm);
 }
 
@@ -448,9 +533,43 @@ a {
   text-decoration: underline;
 }
 
-.candidate-asset-type {
-  margin-top: 0.25rem;
-  text-transform: capitalize;
+.candidate-asset-name {
+  display: block;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.candidate-table .badge {
+  margin-top: 0.375rem;
+}
+
+.candidate-count-cell {
+  text-align: center;
+}
+
+.candidate-action-cell {
+  text-align: right;
+}
+
+.candidate-action-link {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.25rem 0.125rem;
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.candidate-action-link:hover,
+.candidate-action-link:focus-visible {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
 }
 
 .badge,
@@ -485,15 +604,18 @@ a {
 }
 
 .count-value {
-  display: inline-grid;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-width: 1.75rem;
   min-height: 1.75rem;
-  place-items: center;
-  border-radius: 50%;
+  padding: 0 0.375rem;
+  border-radius: 999px;
   background: var(--color-surface-subtle);
-  color: var(--color-status-neutral);
-  font-size: 0.875rem;
-  font-weight: 600;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .candidate-pool-status,
@@ -639,7 +761,21 @@ a {
   }
 
   .candidate-filters {
+    display: grid;
     grid-template-columns: 1fr;
+    padding: var(--space-2);
+  }
+
+  .filter-field--search,
+  .filter-field:not(.filter-field--search) {
+    width: 100%;
+    max-width: none;
+    flex: 1 1 auto;
+  }
+
+  .candidate-table th,
+  .candidate-table td {
+    padding: 0.875rem var(--space-2);
   }
 
   .application-content {
