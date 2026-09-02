@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     database_url: SecretStr | None = None
     database_connection_timeout_seconds: int = Field(default=5, gt=0)
     cors_allowed_origins: list[str] = Field(default_factory=list)
+    allow_development_data_population: bool = False
 
     @field_validator("cors_allowed_origins")
     @classmethod
