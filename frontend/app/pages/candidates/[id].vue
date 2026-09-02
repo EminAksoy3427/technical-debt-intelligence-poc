@@ -93,6 +93,14 @@ const presentation = computed(() => {
             <dt>Asset type</dt>
             <dd>{{ candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType] }}</dd>
           </div>
+          <div>
+            <dt>Asset criticality</dt>
+            <dd>{{ presentation.enterpriseContext.asset.criticality }}</dd>
+          </div>
+          <div>
+            <dt>Asset lifecycle status</dt>
+            <dd>{{ presentation.enterpriseContext.asset.lifecycleStatus }}</dd>
+          </div>
         </dl>
       </section>
 
@@ -106,6 +114,12 @@ const presentation = computed(() => {
 
       <CandidateSignalList :signals="presentation.signals" />
       <CandidateEvidenceList :evidence="presentation.evidence" />
+      <CandidateEnterpriseContext
+        :ownerships="presentation.enterpriseContext.ownerships"
+        :relationships="presentation.enterpriseContext.relationships"
+        :incidents="presentation.enterpriseContext.incidents"
+      />
+      <CandidateDependencyContext :dependencyContext="presentation.dependencyContext" />
     </template>
   </section>
 </template>

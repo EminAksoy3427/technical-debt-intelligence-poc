@@ -317,6 +317,15 @@ a {
   font-size: 1.125rem;
 }
 
+.candidate-detail-subsection {
+  margin-top: var(--space-3);
+}
+
+.candidate-detail-subsection h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
 .candidate-detail-status {
   display: grid;
   gap: var(--space-2);
@@ -343,6 +352,8 @@ a {
 .candidate-detail-list dd {
   margin: 0;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .candidate-breakable {

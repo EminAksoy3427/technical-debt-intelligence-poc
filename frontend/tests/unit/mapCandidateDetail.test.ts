@@ -227,8 +227,225 @@ describe('toCandidateDetailPresentation', () => {
     expect(presentation).not.toHaveProperty('direct_relationships')
     expect(presentation).not.toHaveProperty('direct_incidents')
     expect(presentation).not.toHaveProperty('dependency_context')
+    expect(presentation).not.toHaveProperty('suggestedTeam')
+    expect(presentation).not.toHaveProperty('recommendedOwner')
+    expect(presentation).not.toHaveProperty('technicalDebtOwner')
+    expect(presentation).not.toHaveProperty('impactScore')
+    expect(presentation).not.toHaveProperty('blastRadius')
     expect(serialized).not.toContain('CND-')
     expect(serialized).not.toContain('reviewStatus')
     expect(serialized).not.toContain('suggestedTeam')
+    expect(serialized).not.toContain('recommendedOwner')
+    expect(serialized).not.toContain('technicalDebtOwner')
+  })
+})
+
+describe('toCandidateDetailPresentation enterprise and dependency context', () => {
+  it('preserves enterprise asset name, key, and type', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+    const asset = detail.enterprise_context.enterprise_asset
+
+    expect(presentation.enterpriseContext.asset).toEqual({
+      name: asset.name,
+      assetKey: asset.asset_key,
+      assetType: asset.asset_type,
+      criticality: asset.criticality,
+      lifecycleStatus: asset.lifecycle_status,
+    })
+    expect(presentation.enterpriseContext.asset.name).toBe('Orbit Catalog')
+    expect(presentation.enterpriseContext.asset.assetKey).toBe('svc-orbit-catalog')
+    expect(presentation.enterpriseContext.asset.assetType).toBe('SERVICE')
+  })
+
+  it('maps asset criticality as criticality, not risk', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.enterpriseContext.asset.criticality).toBe('HIGH')
+    expect(presentation.enterpriseContext.asset).not.toHaveProperty('risk')
+    expect(presentation.candidate).not.toHaveProperty('risk')
+    expect(presentation.enterpriseContext).not.toHaveProperty('risk')
+  })
+
+  it('preserves asset lifecycle status as lifecycle, not a decision state', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.enterpriseContext.asset.lifecycleStatus).toBe('ACTIVE')
+    expect(presentation.enterpriseContext.asset).not.toHaveProperty('validationStatus')
+    expect(presentation.enterpriseContext.asset).not.toHaveProperty('decisionStatus')
+  })
+
+  it('maps enterprise ownership team name, team key, and ownership role', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.enterpriseContext.ownerships).toEqual([
+      {
+        teamName: 'Orbit Platform Team',
+        teamKey: 'team-orbit',
+        ownershipRole: 'PRIMARY',
+      },
+    ])
+  })
+
+  it('does not present ownership as Candidate or TechnicalDebt ownership', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+    const ownership = presentation.enterpriseContext.ownerships[0]
+
+    expect(presentation).not.toHaveProperty('suggestedTeam')
+    expect(presentation).not.toHaveProperty('recommendedOwner')
+    expect(presentation).not.toHaveProperty('technicalDebtOwner')
+    expect(presentation.enterpriseContext).not.toHaveProperty('suggestedTeam')
+    expect(presentation.enterpriseContext).not.toHaveProperty('recommendedOwner')
+    expect(presentation.enterpriseContext).not.toHaveProperty('technicalDebtOwner')
+    expect(ownership).not.toHaveProperty('suggestedTeam')
+    expect(ownership).not.toHaveProperty('recommendedOwner')
+    expect(ownership).not.toHaveProperty('technicalDebtOwner')
+  })
+
+  it('preserves direct relationship source, target, and type without causality', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+    const relationship = presentation.enterpriseContext.relationships[0]
+
+    expect(relationship).toEqual({
+      sourceAssetKey: 'app-orbit',
+      targetAssetKey: 'svc-orbit-catalog',
+      relationshipType: 'IMPLEMENTED_BY',
+    })
+    expect(relationship).not.toHaveProperty('causality')
+    expect(relationship).not.toHaveProperty('willFail')
+    expect(relationship).not.toHaveProperty('impact')
+  })
+
+  it('preserves incident key, title, severity, started_at, and resolved_at', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+    const incident = presentation.enterpriseContext.incidents[0]
+
+    expect(incident).toEqual({
+      incidentKey: 'inc-orbit-001',
+      title: 'Catalog timeouts',
+      severity: 'HIGH',
+      startedAt: '2026-08-01T08:00:00+00:00',
+      resolvedAt: null,
+      primaryAffectedAssetKey: 'svc-orbit-catalog',
+    })
+  })
+
+  it('keeps a null incident resolved_at as null', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.enterpriseContext.incidents[0]?.resolvedAt).toBeNull()
+  })
+
+  it('does not map incident severity to Candidate risk', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+    const incident = presentation.enterpriseContext.incidents[0]
+
+    expect(incident?.severity).toBe('HIGH')
+    expect(incident).not.toHaveProperty('risk')
+    expect(presentation.candidate).not.toHaveProperty('risk')
+    expect(presentation).not.toHaveProperty('risk')
+  })
+
+  it('maps a recorded incident resolved_at value without inventing status text', () => {
+    const resolvedDetail: CandidateDetailResponse = {
+      ...detail,
+      enterprise_context: {
+        ...detail.enterprise_context,
+        direct_incidents: [
+          {
+            ...detail.enterprise_context.direct_incidents[0]!,
+            resolved_at: '2026-08-02T09:00:00+00:00',
+          },
+        ],
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(resolvedDetail)
+
+    expect(presentation.enterpriseContext.incidents[0]?.resolvedAt).toBe(
+      '2026-08-02T09:00:00+00:00',
+    )
+    expect(presentation.enterpriseContext.incidents[0]).not.toHaveProperty('activeOutage')
+    expect(presentation.enterpriseContext.incidents[0]).not.toHaveProperty('status')
+  })
+
+  it('maps dependency anchors, dependencies, dependents, and reachable dependents exactly', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.dependencyContext.dependencyAnchors).toEqual([
+      { assetKey: 'svc-orbit-catalog', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext.directDependencies).toEqual([])
+    expect(presentation.dependencyContext.directDependents).toEqual([
+      { assetKey: 'svc-asteria-editor', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext.reachableDependents).toEqual([
+      { assetKey: 'svc-asteria-editor', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext.candidateAsset).toEqual({
+      assetKey: 'svc-orbit-catalog',
+      assetType: 'SERVICE',
+    })
+  })
+
+  it('does not infer reachable dependents or impact from other collections', () => {
+    const graphDetail: CandidateDetailResponse = {
+      ...detail,
+      dependency_context: {
+        ...detail.dependency_context,
+        dependency_anchors: [{ asset_key: 'svc-orbit-catalog', asset_type: 'SERVICE' }],
+        direct_dependencies: [{ asset_key: 'svc-ledger', asset_type: 'SERVICE' }],
+        direct_dependents: [{ asset_key: 'svc-asteria-editor', asset_type: 'SERVICE' }],
+        reachable_dependents: [
+          { asset_key: 'svc-asteria-editor', asset_type: 'SERVICE' },
+          { asset_key: 'svc-borealis-renderer', asset_type: 'SERVICE' },
+        ],
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(graphDetail)
+
+    expect(presentation.dependencyContext.directDependencies).toEqual([
+      { assetKey: 'svc-ledger', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext.directDependents).toEqual([
+      { assetKey: 'svc-asteria-editor', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext.reachableDependents).toEqual([
+      { assetKey: 'svc-asteria-editor', assetType: 'SERVICE' },
+      { assetKey: 'svc-borealis-renderer', assetType: 'SERVICE' },
+    ])
+    expect(presentation.dependencyContext).not.toHaveProperty('impactedSystems')
+    expect(presentation.dependencyContext).not.toHaveProperty('blastRadius')
+    expect(presentation.dependencyContext).not.toHaveProperty('impactScore')
+    expect(presentation.dependencyContext).not.toHaveProperty('expectedOutage')
+  })
+
+  it('maps empty enterprise and dependency collections as empty arrays', () => {
+    const emptyDetail: CandidateDetailResponse = {
+      ...detail,
+      enterprise_context: {
+        ...detail.enterprise_context,
+        enterprise_ownerships: [],
+        direct_relationships: [],
+        direct_incidents: [],
+      },
+      dependency_context: {
+        ...detail.dependency_context,
+        dependency_anchors: [],
+        direct_dependencies: [],
+        direct_dependents: [],
+        reachable_dependents: [],
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(emptyDetail)
+
+    expect(presentation.enterpriseContext.ownerships).toEqual([])
+    expect(presentation.enterpriseContext.relationships).toEqual([])
+    expect(presentation.enterpriseContext.incidents).toEqual([])
+    expect(presentation.dependencyContext.dependencyAnchors).toEqual([])
+    expect(presentation.dependencyContext.directDependencies).toEqual([])
+    expect(presentation.dependencyContext.directDependents).toEqual([])
+    expect(presentation.dependencyContext.reachableDependents).toEqual([])
   })
 })

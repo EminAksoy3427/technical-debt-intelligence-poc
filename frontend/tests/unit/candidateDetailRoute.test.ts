@@ -28,9 +28,32 @@ describe('Candidate Detail route source', () => {
     expect(detailPage).not.toContain('reviewStatus')
     expect(detailPage).not.toContain('suggestedTeam')
     expect(detailPage).not.toContain('CandidateStatusBadge')
-    expect(detailPage).not.toContain('CandidateContext')
+    expect(detailPage).not.toContain('<CandidateContext')
     expect(detailPage).not.toMatch(/CND-/)
     expect(detailPage).not.toContain('data_store')
+  })
+
+  it('reuses the D1 Detail response for enterprise and dependency context', () => {
+    expect(detailPage).toContain('toCandidateDetailPresentation(data.value)')
+    expect(detailPage).toContain('presentation.enterpriseContext')
+    expect(detailPage).toContain('presentation.dependencyContext')
+    expect(detailPage).not.toContain('getCandidates')
+    expect(detailPage).not.toContain('/api/v1/assets')
+    expect(detailPage).not.toContain('/api/v1/incidents')
+    expect(detailPage).not.toContain('/api/v1/teams')
+    expect(detailPage).not.toContain('/api/v1/dependencies')
+    expect(detailPage).not.toContain('$fetch(')
+  })
+
+  it('keeps D1 Candidate, Signal, Evidence, and error-state rendering', () => {
+    expect(detailPage).toContain('presentation.candidate.hypothesis')
+    expect(detailPage).toContain('presentation.candidate.correlationRationale')
+    expect(detailPage).toContain('CandidateSignalList')
+    expect(detailPage).toContain('CandidateEvidenceList')
+    expect(detailPage).toContain("viewState === 'loading'")
+    expect(detailPage).toContain("viewState === 'not-found'")
+    expect(detailPage).toContain("viewState === 'invalid-identifier'")
+    expect(detailPage).toContain("viewState === 'error'")
   })
 
   it('keeps Pool UUID navigation compatible with the Detail route', () => {

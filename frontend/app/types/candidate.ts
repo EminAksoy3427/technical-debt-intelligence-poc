@@ -1,4 +1,11 @@
-import type { AssetType } from './candidateApi'
+import type {
+  AssetCriticality,
+  AssetLifecycleStatus,
+  AssetRelationshipType,
+  AssetType,
+  IncidentSeverity,
+  OwnershipRole,
+} from './candidateApi'
 
 /**
  * Frontend presentation model for the Candidate Pool.
@@ -62,12 +69,87 @@ export interface CandidateEvidenceItem {
 }
 
 /**
- * Factual D1 presentation model for Candidate Detail.
- * Enterprise ownership, relationships, incidents, and dependency context
- * are deferred to FP-01B-D2.
+ * Factual enterprise asset context for Candidate Detail.
+ * Criticality is asset criticality, not Candidate or TechnicalDebt risk.
+ * Lifecycle status is asset lifecycle status.
+ */
+export interface CandidateEnterpriseAssetContext {
+  name: string
+  assetKey: string
+  assetType: AssetType
+  criticality: AssetCriticality
+  lifecycleStatus: AssetLifecycleStatus
+}
+
+/**
+ * Factual enterprise asset ownership for Candidate Detail.
+ * These records describe ownership of the enterprise asset, not Candidate
+ * ownership and not validated TechnicalDebt ownership.
+ */
+export interface CandidateEnterpriseOwnershipItem {
+  teamName: string
+  teamKey: string
+  ownershipRole: OwnershipRole
+}
+
+/**
+ * Factual recorded enterprise relationship. This is not causality.
+ */
+export interface CandidateDirectRelationshipItem {
+  sourceAssetKey: string
+  targetAssetKey: string
+  relationshipType: AssetRelationshipType
+}
+
+/**
+ * Factual associated incident context. An incident does not prove Candidate causality.
+ * Incident severity is not Candidate risk.
+ */
+export interface CandidateDirectIncidentItem {
+  incidentKey: string
+  title: string
+  severity: IncidentSeverity
+  startedAt: string
+  resolvedAt: string | null
+  primaryAffectedAssetKey: string
+}
+
+export interface CandidateEnterpriseContextPresentation {
+  asset: CandidateEnterpriseAssetContext
+  ownerships: CandidateEnterpriseOwnershipItem[]
+  relationships: CandidateDirectRelationshipItem[]
+  incidents: CandidateDirectIncidentItem[]
+}
+
+/**
+ * Factual dependency graph asset reference returned by the backend.
+ */
+export interface CandidateDependencyAssetItem {
+  assetKey: string
+  assetType: AssetType
+}
+
+/**
+ * Factual dependency reachability context returned by the backend.
+ * Reachable dependents are graph connectivity facts, not guaranteed impact.
+ */
+export interface CandidateDependencyContextPresentation {
+  candidateAsset: CandidateDependencyAssetItem
+  dependencyAnchors: CandidateDependencyAssetItem[]
+  directDependencies: CandidateDependencyAssetItem[]
+  directDependents: CandidateDependencyAssetItem[]
+  reachableDependents: CandidateDependencyAssetItem[]
+}
+
+/**
+ * Factual Candidate Detail presentation model.
+ * This is not TechnicalDebt and does not represent validation, risk, effort,
+ * priority, ownership decisions, causality, or guaranteed impact.
  */
 export interface CandidateDetailPresentation {
   candidate: CandidateDetailCore
   signals: CandidateSignalItem[]
   evidence: CandidateEvidenceItem[]
+  enterpriseContext: CandidateEnterpriseContextPresentation
+  dependencyContext: CandidateDependencyContextPresentation
 }
