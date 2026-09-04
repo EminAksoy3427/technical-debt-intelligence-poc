@@ -295,12 +295,15 @@ a {
 .section-header,
 .candidate-pool-heading,
 .candidate-detail-section h2,
-.candidate-detail-subsection h3 {
+.candidate-detail-section h3,
+.candidate-detail-subsection h3,
+.candidate-detail-subsection h4 {
   color: var(--color-ink);
 }
 
 .section-header,
-.candidate-detail-section h2 {
+.candidate-detail-section h2,
+.candidate-detail-section h3 {
   margin: 0;
   font-size: 1.0625rem;
   font-weight: 600;
@@ -643,6 +646,56 @@ a {
   text-decoration: underline;
 }
 
+.candidate-section-nav {
+  margin: 0 0 var(--space-3);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.candidate-section-nav-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidate-section-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  color: var(--color-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.candidate-section-nav-link:hover,
+.candidate-section-nav-link:focus-visible {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
+}
+
+.candidate-detail-region {
+  margin-top: var(--space-4);
+  scroll-margin-top: calc(var(--header-height) + var(--space-2));
+}
+
+.candidate-detail-region:first-of-type {
+  margin-top: var(--space-2);
+}
+
+.candidate-region-heading {
+  margin: 0 0 var(--space-2);
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: var(--line-tight);
+}
+
 .candidate-summary,
 .candidate-detail-section {
   margin-top: var(--space-3);
@@ -717,6 +770,10 @@ a {
   margin-top: 0;
 }
 
+.candidate-detail-region .candidate-summary {
+  margin-top: var(--space-2);
+}
+
 .candidate-detail-columns {
   margin-top: var(--space-3);
   min-width: 0;
@@ -744,7 +801,9 @@ a {
 }
 
 .candidate-detail-subsection h3,
-.candidate-context-panel h3 {
+.candidate-detail-subsection h4,
+.candidate-context-panel h3,
+.candidate-context-panel h4 {
   margin: 0;
   font-size: 0.9375rem;
   font-weight: 600;

@@ -1,3 +1,5 @@
+import subprocess
+import sys
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
@@ -46,6 +48,38 @@ def _unique_column_sets(table_name: str) -> set[frozenset[str]]:
 
 def test_metadata_contains_expected_runtime_tables() -> None:
     assert EXPECTED_TABLES <= set(Base.metadata.tables)
+
+
+def test_alembic_target_metadata_includes_candidate_orm_tables() -> None:
+    backend_root = Path(__file__).resolve().parents[3]
+    env_source = (backend_root / "alembic" / "env.py").read_text(encoding="utf-8")
+    model_imports = [
+        line.strip().split()[1]
+        for line in env_source.splitlines()
+        if line.strip().startswith("import app.infrastructure.database.")
+    ]
+    table_literals = ", ".join(
+        repr(table_name) for table_name in sorted(EXPECTED_TABLES)
+    )
+    probe = "\n".join(
+        [
+            *[f"import {module_name}" for module_name in model_imports],
+            "from app.infrastructure.database.base import Base",
+            f"required = {{{table_literals}}}",
+            "missing = required - set(Base.metadata.tables)",
+            "if missing:",
+            '    raise SystemExit("missing tables: " + ", ".join(sorted(missing)))',
+        ]
+    )
+    completed = subprocess.run(
+        [sys.executable, "-c", probe],
+        cwd=backend_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
 def test_enterprise_assets_use_stable_keys_and_contextual_criticality() -> None:

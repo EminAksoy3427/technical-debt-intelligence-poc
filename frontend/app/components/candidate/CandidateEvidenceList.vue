@@ -15,7 +15,7 @@ function httpReferenceHref(referenceUri: string): string | undefined {
     class="candidate-detail-section candidate-evidence-section"
     aria-labelledby="candidate-evidence-heading"
   >
-    <h2 id="candidate-evidence-heading">Evidence</h2>
+    <h3 id="candidate-evidence-heading">Evidence</h3>
     <p class="candidate-section-introduction">
       Evidence provides provenance for this Candidate. Evidence does not validate the Candidate.
     </p>

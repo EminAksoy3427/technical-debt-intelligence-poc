@@ -4,6 +4,7 @@ interface PrimaryNavigationItem {
   label: string
 }
 
+// Implemented workspaces only. Add a route here when that workspace exists.
 const primaryNavigationItems: readonly PrimaryNavigationItem[] = [
   { to: '/candidates', label: 'Candidates' },
 ]

@@ -11,7 +11,7 @@ defineProps<{
     class="candidate-detail-section candidate-signal-section"
     aria-labelledby="candidate-signals-heading"
   >
-    <h2 id="candidate-signals-heading">Signals</h2>
+    <h3 id="candidate-signals-heading">Signals</h3>
     <p class="candidate-section-introduction">
       These Signals are correlated members of this Candidate. A Signal is not a Candidate and does not prove validity.
     </p>

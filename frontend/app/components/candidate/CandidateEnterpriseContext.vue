@@ -22,11 +22,11 @@ defineProps<{
 
 <template>
   <section class="candidate-detail-section" aria-labelledby="candidate-enterprise-heading">
-    <h2 id="candidate-enterprise-heading">Enterprise context</h2>
+    <h3 id="candidate-enterprise-heading">Enterprise context</h3>
 
     <div class="candidate-context-grid">
       <section class="candidate-context-panel" aria-labelledby="candidate-asset-facts-heading">
-        <h3 id="candidate-asset-facts-heading">Asset facts</h3>
+        <h4 id="candidate-asset-facts-heading">Asset facts</h4>
         <dl class="candidate-detail-list">
           <div>
             <dt>Asset name</dt>
@@ -62,7 +62,7 @@ defineProps<{
       </section>
 
       <section class="candidate-context-panel" aria-labelledby="candidate-ownership-heading">
-        <h3 id="candidate-ownership-heading">Enterprise asset ownership</h3>
+        <h4 id="candidate-ownership-heading">Enterprise asset ownership</h4>
         <p class="candidate-section-introduction">
           These records describe ownership of the enterprise asset, not validated TechnicalDebt ownership.
         </p>
@@ -97,7 +97,7 @@ defineProps<{
       </section>
 
       <section class="candidate-context-panel" aria-labelledby="candidate-relationships-heading">
-        <h3 id="candidate-relationships-heading">Direct relationships</h3>
+        <h4 id="candidate-relationships-heading">Direct relationships</h4>
         <p class="candidate-section-introduction">
           Relationships describe recorded enterprise structure; they do not establish Candidate causality.
         </p>
@@ -130,7 +130,7 @@ defineProps<{
       </section>
 
       <section class="candidate-context-panel" aria-labelledby="candidate-incidents-heading">
-        <h3 id="candidate-incidents-heading">Direct incidents</h3>
+        <h4 id="candidate-incidents-heading">Direct incidents</h4>
         <p class="candidate-section-introduction">
           Incidents are associated operational context and do not prove that this Candidate caused them.
         </p>

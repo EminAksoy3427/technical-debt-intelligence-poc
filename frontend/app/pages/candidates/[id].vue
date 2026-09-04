@@ -34,6 +34,11 @@ const presentation = computed(() => {
 
   return toCandidateDetailPresentation(data.value)
 })
+
+const implementedCandidateDetailSections = [
+  { id: 'candidate-overview', label: 'Overview' },
+  { id: 'candidate-evidence-context', label: 'Evidence & Context' },
+] as const
 </script>
 
 <template>
@@ -62,67 +67,93 @@ const presentation = computed(() => {
     </template>
 
     <template v-else-if="presentation">
-      <header class="candidate-summary">
-        <p class="eyebrow">Candidate</p>
-        <h1 id="candidate-title">{{ presentation.candidate.hypothesis }}</h1>
-        <p class="candidate-identifier">
-          <span class="candidate-id-label">Candidate ID</span>
-          {{ presentation.candidate.candidateId }}
-        </p>
-        <p class="candidate-summary-note">
-          This is a Candidate, not validated TechnicalDebt.
-        </p>
+      <nav class="candidate-section-nav" aria-label="Candidate sections">
+        <ul class="candidate-section-nav-list">
+          <li v-for="section in implementedCandidateDetailSections" :key="section.id">
+            <a class="candidate-section-nav-link" :href="`#${section.id}`">{{ section.label }}</a>
+          </li>
+        </ul>
+      </nav>
 
-        <dl class="candidate-summary-facts">
-          <div>
-            <dt>Affected asset</dt>
-            <dd>
-              <span class="candidate-asset-name">{{ presentation.candidate.assetDisplayName }}</span>
-              <span class="badge badge--neutral">{{
-                candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType]
-              }}</span>
-              <span class="candidate-identifier">{{ presentation.candidate.canonicalAssetKey }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Asset criticality</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                candidateAssetCriticalityLabels[presentation.enterpriseContext.asset.criticality]
-              }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Asset lifecycle status</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                candidateAssetLifecycleStatusLabels[presentation.enterpriseContext.asset.lifecycleStatus]
-              }}</span>
-            </dd>
-          </div>
-        </dl>
-      </header>
+      <section
+        id="candidate-overview"
+        class="candidate-detail-region"
+        aria-labelledby="candidate-overview-heading"
+      >
+        <p id="candidate-overview-heading" class="candidate-region-heading">Overview</p>
 
-      <section class="candidate-detail-section" aria-labelledby="candidate-correlation-heading">
-        <h2 id="candidate-correlation-heading">Correlation rationale</h2>
-        <p class="candidate-section-introduction">
-          System-generated deterministic correlation context. This is not validation.
-        </p>
-        <p class="candidate-correlation-rationale">{{ presentation.candidate.correlationRationale }}</p>
+        <header class="candidate-summary">
+          <p class="eyebrow">Candidate</p>
+          <h1 id="candidate-title">{{ presentation.candidate.hypothesis }}</h1>
+          <p class="candidate-identifier">
+            <span class="candidate-id-label">Candidate ID</span>
+            {{ presentation.candidate.candidateId }}
+          </p>
+          <p class="candidate-summary-note">
+            This is a Candidate, not validated TechnicalDebt.
+          </p>
+
+          <dl class="candidate-summary-facts">
+            <div>
+              <dt>Affected asset</dt>
+              <dd>
+                <span class="candidate-asset-name">{{ presentation.candidate.assetDisplayName }}</span>
+                <span class="badge badge--neutral">{{
+                  candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType]
+                }}</span>
+                <span class="candidate-identifier">{{ presentation.candidate.canonicalAssetKey }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Asset criticality</dt>
+              <dd>
+                <span class="badge badge--neutral">{{
+                  candidateAssetCriticalityLabels[presentation.enterpriseContext.asset.criticality]
+                }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt>Asset lifecycle status</dt>
+              <dd>
+                <span class="badge badge--neutral">{{
+                  candidateAssetLifecycleStatusLabels[presentation.enterpriseContext.asset.lifecycleStatus]
+                }}</span>
+              </dd>
+            </div>
+          </dl>
+        </header>
+
+        <section class="candidate-detail-section" aria-labelledby="candidate-correlation-heading">
+          <h2 id="candidate-correlation-heading">Correlation rationale</h2>
+          <p class="candidate-section-introduction">
+            System-generated deterministic correlation context. This is not validation.
+          </p>
+          <p class="candidate-correlation-rationale">{{ presentation.candidate.correlationRationale }}</p>
+        </section>
       </section>
 
-      <div class="layout-columns candidate-detail-columns">
-        <CandidateEvidenceList :evidence="presentation.evidence" />
-        <CandidateSignalList :signals="presentation.signals" />
-      </div>
+      <section
+        id="candidate-evidence-context"
+        class="candidate-detail-region"
+        aria-labelledby="candidate-evidence-context-heading"
+      >
+        <h2 id="candidate-evidence-context-heading" class="candidate-region-heading">
+          Evidence &amp; Context
+        </h2>
 
-      <CandidateEnterpriseContext
-        :asset="presentation.enterpriseContext.asset"
-        :ownerships="presentation.enterpriseContext.ownerships"
-        :relationships="presentation.enterpriseContext.relationships"
-        :incidents="presentation.enterpriseContext.incidents"
-      />
-      <CandidateDependencyContext :dependencyContext="presentation.dependencyContext" />
+        <div class="layout-columns candidate-detail-columns">
+          <CandidateEvidenceList :evidence="presentation.evidence" />
+          <CandidateSignalList :signals="presentation.signals" />
+        </div>
+
+        <CandidateEnterpriseContext
+          :asset="presentation.enterpriseContext.asset"
+          :ownerships="presentation.enterpriseContext.ownerships"
+          :relationships="presentation.enterpriseContext.relationships"
+          :incidents="presentation.enterpriseContext.incidents"
+        />
+        <CandidateDependencyContext :dependencyContext="presentation.dependencyContext" />
+      </section>
     </template>
   </section>
 </template>
