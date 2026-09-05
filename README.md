@@ -26,8 +26,10 @@ Frontend configuration requires Node >=22.12.0.
 
 **Option B is the target:** an extensible modular monolith with Ports & Adapters,
 explicit extension contracts, a governed agent runtime, and async-ready seams.
-Those contracts and runtime are not implemented today. Neither is a
-TechnicalDebt lifecycle. See the [architecture overview](docs/architecture/overview.md).
+Connector, SourceObservation, and Connector Registry contracts exist for
+registered sources. Agent Runtime, Tool Registry, Policy, and a TechnicalDebt
+lifecycle are not implemented today. See the
+[architecture overview](docs/architecture/overview.md).
 
 ## Repository entry points
 
@@ -51,12 +53,15 @@ With dependencies already installed in the chosen environment, run from `backend
 ```text
 python -m uvicorn app.main:app --reload
 python -m pytest tests/api/test_openapi_contract.py tests/api/test_candidate_api.py tests/test_health.py
+python -m pytest -m "not integration and not external"
 ```
 
 Backend dependencies and test configuration are in
 [pyproject.toml](backend/pyproject.toml). Database operations require the
 environment-backed configuration described in [backend/.env.example](backend/.env.example).
-External-infrastructure tests are marked `integration`.
+Tests that need live MSSQL are marked `integration`. Tests that need a live
+external HTTP source are marked `external`. The deterministic suite excludes
+both markers and must not require Internet access.
 
 From `frontend`, `npm run dev` starts Nuxt and `npm test` runs Vitest, as defined
 in [package.json](frontend/package.json). Configure `NUXT_PUBLIC_API_BASE_URL`
@@ -73,6 +78,8 @@ at `/openapi.json` and browsable at `/docs` on the running FastAPI app.
 ## Deeper documentation
 
 - [Architecture: current, Option B target, database and frontend baseline](docs/architecture/overview.md)
+- [Adding a connector](docs/extensions/adding-a-connector.md)
+- [Database evolution and migrations](docs/database/evolution-and-migrations.md)
 - [Domain invariants and terminology](docs/domain/invariants.md)
 - [ADR 0001: Option B — Extensible Modular Monolith](docs/adr/0001-option-b-extensible-modular-monolith.md)
 - [Current API contract](docs/api-contract.md)

@@ -66,9 +66,12 @@ authorization, and verification is not closure. This flow is not implemented.
 ## Known gaps
 
 The remaining non-blocking baseline gaps are direct API-to-infrastructure reads,
-infrastructure DTO mapping in `candidate_schemas`, incident-specific recurrence
-logic in correlation, and absent explicit connector/normalizer/registry
-contracts. Their deferred treatment is recorded in the [overview](../architecture/overview.md).
+infrastructure DTO mapping in `candidate_schemas`, and incident-specific
+recurrence logic in correlation. Explicit connector, SourceObservation,
+functional normalizer, and Connector Registry contracts now exist for registered
+sources. Agent Runtime, Tool Registry, Policy, and an async backbone remain
+future work. Deferred treatment of the remaining gaps is recorded in the
+[overview](../architecture/overview.md).
 
 A missing `candidate_models` import in Alembic metadata assembly was identified
 during the 4 September architecture baseline and resolved during the same

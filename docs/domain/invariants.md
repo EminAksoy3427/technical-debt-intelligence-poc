@@ -9,7 +9,7 @@ do not imply implemented models, scores, APIs, or lifecycle operations.
 
 | Term | Meaning and current status |
 | --- | --- |
-| Source Finding | A source-specific observation before canonical normalization, such as a scanner finding or incident record; not a shared connector contract today |
+| Source Finding | A source-specific observation before canonical normalization, such as a scanner finding or incident record. Explicit connectors wrap those records in the shared `SourceObservation` boundary; Semgrep, Incident, and Git/SATD may still use legacy loader paths. Not every source has migrated to the explicit Connector contract. `SourceObservation` is not a canonical Signal |
 | Signal | A canonical source-observed event with affected asset, source identity, detection time, type, optional severity and Evidence references |
 | Evidence | Traceable support for an observation: source, reference, capture time and optional URI; it supports assessment without validating debt |
 | Candidate | A deterministic problem hypothesis for a canonical asset, referencing Signals and Evidence and carrying correlation rationale; not validated debt |

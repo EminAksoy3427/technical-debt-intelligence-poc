@@ -1,8 +1,12 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 2 / Package 4. **CURRENT** describes repository
-code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
-records the decision; [domain invariants](../domain/invariants.md) govern both views.
+Baseline: 5 September 2026, Day 2 / Package 5 complete. **CURRENT** describes
+repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
+records the decision; [domain invariants](../domain/invariants.md) govern both
+views. Connector extension is documented in
+[adding a connector](../extensions/adding-a-connector.md). Database evolution is
+documented in
+[evolution and migrations](../database/evolution-and-migrations.md).
 
 ## CURRENT: layered modular monolith
 
@@ -122,7 +126,9 @@ for the public two-issue demo source.
 normalizer. Semgrep, Git SATD, and Incident ingestion are not yet migrated.
 Connectors and the Registry have no Candidate or TechnicalDebt knowledge, and
 this seam is not a dynamic plugin system: it performs no runtime discovery,
-scanning, entry-point loading, or marketplace orchestration.
+scanning, entry-point loading, or marketplace orchestration. See
+[adding a connector](../extensions/adding-a-connector.md) for the current
+extension workflow.
 
 ## TARGET: Option B
 
@@ -195,6 +201,10 @@ closure. This sequence describes future responsibilities, not current agents,
 tools, policy enforcement, or audit persistence capabilities.
 
 ## CURRENT database / migration inventory
+
+The handover-ready schema, ERD, migration coverage, and evolution guidance live
+in [evolution and migrations](../database/evolution-and-migrations.md). Day 2
+Packages 2–4 made **NO SCHEMA CHANGE**.
 
 MSSQL is accessed using synchronous SQLAlchemy 2 with `mssql+pyodbc`; Alembic
 owns schema versioning. Migrations are in `backend/alembic/versions`, configured
