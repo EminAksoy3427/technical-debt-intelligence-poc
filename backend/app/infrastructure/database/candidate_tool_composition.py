@@ -8,7 +8,7 @@ from app.infrastructure.database.candidate_investigation_reader import (
 
 
 def build_database_candidate_tool_registry(session: Session) -> ToolRegistry:
-    """Compose the database reader adapter and production Candidate tool."""
+    """Compose the database reader adapter and production Candidate tools."""
     return build_candidate_tool_registry(
         DatabaseCandidateInvestigationReader(session=session)
     )

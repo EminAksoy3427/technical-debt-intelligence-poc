@@ -27,8 +27,10 @@ Frontend configuration requires Node >=22.12.0.
 **Option B is the target:** an extensible modular monolith with Ports & Adapters,
 explicit extension contracts, a governed agent runtime, and async-ready seams.
 Connector, SourceObservation, and Connector Registry contracts exist for
-registered sources. Agent Runtime, Tool Registry, Policy, and a TechnicalDebt
-lifecycle are not implemented today. See the
+registered sources. An explicit Agent Tool contract, Tool Registry, and
+Policy boundary exist for Candidate-scoped READ tools. Agent Runtime,
+provider/LLM integration, Agent API, and a TechnicalDebt lifecycle are not
+implemented today. See the
 [architecture overview](docs/architecture/overview.md).
 
 ## Repository entry points

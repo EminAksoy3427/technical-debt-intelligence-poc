@@ -66,8 +66,13 @@ The API delegates SQL work but calls the infrastructure read model directly.
 Consequently, this is **not yet full Ports & Adapters**. That dependency is a
 known, non-blocking gap, not an implied application port.
 
-There is currently no Agent Tool Contract, Tool Registry, Policy Port, Knowledge
-provider contract, TechnicalDebt lifecycle implementation, or agent runtime.
+An explicit typed Agent Tool contract, deterministic Tool Registry, and
+deterministic Policy boundary exist for Candidate-scoped READ tools:
+`read_candidate_evidence`, `read_candidate_dependency_context`, and
+`read_candidate_enterprise_context`. There is currently no Agent Runtime,
+Knowledge provider contract, TechnicalDebt lifecycle implementation,
+provider/LLM integration, Agent API, Structured Assessment, production WRITE
+tools, or persisted AgentRun / ToolExecution / PolicyDecision.
 The dependency-lifecycle vertical slice implements an explicit Connector,
 SourceObservation, functional normalizer boundary, and Connector Registry
 contracts. GitHub Issues is registered as a second explicit connector and
@@ -173,9 +178,9 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
-| Agent Tool Contract | Describe bounded capabilities and their inputs/results |
-| Tool Registry | Discover/compose tools; availability does not grant permission |
-| Policy Port | Check whether proposed execution is permitted |
+| Agent Tool Contract | Implemented for Candidate-scoped READ tools: typed inputs/results. Agent Runtime, Agent API, and WRITE tools are not implemented |
+| Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
+| Policy Port | Implemented as a deterministic in-process Policy boundary. Not persisted; not Agent Runtime authorization |
 | Knowledge capability/provider | Supply contextual knowledge through a replaceable boundary |
 
 Introduce agent/tool/policy contracts only with their implemented vertical
@@ -197,8 +202,9 @@ Agent prepares → Human approves → Policy checks → Executor executes
 
 AI proposes. Evidence explains. Human decides. Agent assessment is not
 authorization, tool availability is not permission, and verification is not
-closure. This sequence describes future responsibilities, not current agents,
-tools, policy enforcement, or audit persistence capabilities.
+closure. This sequence describes future L4 runtime, approval, and audit
+persistence responsibilities. It does not describe the current Candidate READ
+tools, Tool Registry, or in-process Policy boundary.
 
 ## CURRENT database / migration inventory
 
