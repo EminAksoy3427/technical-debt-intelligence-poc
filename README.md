@@ -28,11 +28,12 @@ Frontend configuration requires Node >=22.12.0.
 explicit extension contracts, a governed agent runtime, and async-ready seams.
 Connector, SourceObservation, and Connector Registry contracts exist for
 registered sources. An explicit Agent Tool contract, Tool Registry, and
-Policy boundary exist for Candidate-scoped READ tools. Agent Runtime,
-provider/LLM integration, Agent API, and a TechnicalDebt lifecycle are not
-implemented today. Typed Structured Assessment and AgentRun, ToolExecution,
-and PolicyDecision audit persistence now provide a durable foundation without
-granting lifecycle authority. See the
+Policy boundary exist for Candidate-scoped READ tools. A bounded synchronous
+Agent Runtime now connects those tools to durable AgentRun, ToolExecution,
+PolicyDecision, and Structured Assessment audit records. A deterministic
+scripted provider proves orchestration without a real model. Live provider/LLM
+integration, Agent API, and a TechnicalDebt lifecycle are not implemented.
+The runtime investigates only and grants no lifecycle authority. See the
 [architecture overview](docs/architecture/overview.md).
 
 ## Repository entry points

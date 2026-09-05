@@ -85,6 +85,47 @@ def test_github_repository_identity_loads_from_environment(
     assert app_settings.github_repository_name == "technical-debt-connector-demo"
 
 
+def test_agent_runtime_limits_have_bounded_defaults(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in (
+        "AGENT_MAX_ITERATIONS",
+        "AGENT_MAX_TOOL_CALLS",
+        "AGENT_RUN_TIMEOUT_SECONDS",
+        "AGENT_TOOL_TIMEOUT_SECONDS",
+    ):
+        monkeypatch.delenv(name, raising=False)
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.agent_max_iterations == 6
+    assert app_settings.agent_max_tool_calls == 3
+    assert app_settings.agent_run_timeout_seconds == 60
+    assert app_settings.agent_tool_timeout_seconds == 5
+
+    field_names = set(Settings.model_fields)
+    assert {
+        "agent_allowed_effects",
+        "agent_maximum_risk",
+        "agent_granted_scopes",
+        "agent_approval",
+    }.isdisjoint(field_names)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "agent_max_iterations",
+        "agent_max_tool_calls",
+        "agent_run_timeout_seconds",
+        "agent_tool_timeout_seconds",
+    ),
+)
+def test_agent_runtime_limits_must_be_positive(field_name: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field_name: 0})
+
+
 def test_github_settings_have_no_token_and_safe_repr(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

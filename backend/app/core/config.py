@@ -16,6 +16,10 @@ class Settings(BaseSettings):
     github_repository_owner: str | None = None
     github_repository_name: str | None = None
     github_request_timeout_seconds: int = Field(default=5, gt=0)
+    agent_max_iterations: int = Field(default=6, gt=0)
+    agent_max_tool_calls: int = Field(default=3, gt=0)
+    agent_run_timeout_seconds: int = Field(default=60, gt=0)
+    agent_tool_timeout_seconds: int = Field(default=5, gt=0)
     cors_allowed_origins: list[str] = Field(default_factory=list)
     allow_development_data_population: bool = False
 
