@@ -1,15 +1,15 @@
 # Architecture baseline
 
-Baseline: 4 September 2026, Day 1 / Package 2. This is a documentation-only
-re-baseline. **CURRENT** describes repository code; **TARGET** describes future
-Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
+Baseline: 4 September 2026, Day 2 / Package 2. **CURRENT** describes repository
+code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both views.
 
 ## CURRENT: layered modular monolith
 
 ```text
 Sources
-  → source adapters
+  → source acquisition (explicit Connector for dependency-lifecycle)
+  → SourceObservation (dependency-lifecycle)
   → source-specific normalizers
   → NormalizedSignal (Signal + Evidence)
   → deterministic Candidate correlation
@@ -23,7 +23,7 @@ persisted data; they do not scan sources or trigger correlation.
 
 | Responsibility | Current implementation |
 | --- | --- |
-| Acquisition | Semgrep and Git SATD scanners, dependency lifecycle JSON loader in `backend/app/infrastructure`; persisted incident loading under `infrastructure/database` |
+| Acquisition | Dependency lifecycle uses the explicit connector seam in `backend/app/connectors`; Semgrep and Git SATD scanners remain in `backend/app/infrastructure`; persisted incident loading remains under `infrastructure/database` |
 | Normalization | `semgrep_ingestion.py`, `git_history_ingestion.py`, `dependency_lifecycle_ingestion.py`, `incident_ingestion.py` under `backend/app` |
 | Canonical output | `backend/app/signal_ingestion.py`: `NormalizedSignal` bundles a Signal with matching, nonempty Evidence |
 | Correlation | `backend/app/candidate_correlation.py`: canonical asset and problem-family grouping, deterministic identifiers and rationale |
@@ -50,11 +50,34 @@ The API delegates SQL work but calls the infrastructure read model directly.
 Consequently, this is **not yet full Ports & Adapters**. That dependency is a
 known, non-blocking gap, not an implied application port.
 
-There is currently no explicit Connector Contract, Normalizer Contract,
-Connector Registry, Agent Tool Contract, Tool Registry, Policy Port, Knowledge
+There is currently no Agent Tool Contract, Tool Registry, Policy Port, Knowledge
 provider contract, TechnicalDebt lifecycle implementation, or agent runtime.
-Existing functions and `NormalizedSignal` provide useful seams for future
-contract extraction; they do not constitute those extension contracts today.
+The dependency-lifecycle vertical slice now implements the first explicit
+Connector, SourceObservation, functional normalizer boundary, and Connector
+Registry contracts. The other acquisition paths remain legacy-compatible.
+
+### CURRENT connector acquisition seam
+
+```text
+External/local source
+  → Connector
+  → SourceObservation
+  → Normalizer
+  → NormalizedSignal
+  → persistence / correlation
+```
+
+The Connector collects source-specific records and attaches their existing
+provenance and observation time. The Normalizer maps an observation through the
+existing canonical normalization function; required asset resolution remains an
+explicit caller dependency. The Registry composes registrations explicitly in
+code, with deterministic order and duplicate identifier rejection.
+
+`dependency-lifecycle` is the first and only source registered against this
+contract. Semgrep, Git SATD, and Incident ingestion are not yet migrated. The
+Connector and Registry have no Candidate or TechnicalDebt knowledge, and this
+seam is not a dynamic plugin system: it performs no runtime discovery, scanning,
+entry-point loading, or marketplace orchestration.
 
 ## TARGET: Option B
 
@@ -94,11 +117,11 @@ the project; executable approval/policy/lifecycle machinery is future work.
 
 ### Target extension surfaces
 
-| Surface (not implemented as an explicit contract today) | Intended responsibility |
+| Surface | Current status / intended responsibility |
 | --- | --- |
-| Connector Contract | Acquire observations/findings with provenance |
-| Normalizer Contract | Map findings to canonical `NormalizedSignal` / Signal + Evidence |
-| Connector Registry | Select and compose connectors outside the domain |
+| Connector Contract | Implemented for dependency-lifecycle: acquire observations/findings with provenance |
+| Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
+| Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
 | Agent Tool Contract | Describe bounded capabilities and their inputs/results |
 | Tool Registry | Discover/compose tools; availability does not grant permission |
 | Policy Port | Check whether proposed execution is permitted |
@@ -113,15 +136,6 @@ Boundary examples:
 - Bad: add Semgrep-specific rule structures as Candidate domain fields.
 - Good: a connector feeds a normalizer that produces canonical Signal/Evidence.
 - Bad: the frontend calls Semgrep or Git scanner implementations directly.
-
-### 5 September connector direction — TARGET only
-
-The future Connector Contract should live outside pure domain and represent
-acquisition of source observations/findings. It must preserve provenance and
-feed a Normalizer Contract whose output is canonical `NormalizedSignal`
-(Signal + Evidence). Acquisition must not know Candidate correlation or the
-frontend, perform lifecycle validation, or authorize actions. Keep registry
-wiring simple; a runtime plugin framework is not a prerequisite.
 
 ### L4 governed execution — TARGET / FUTURE, not implemented
 
@@ -189,6 +203,5 @@ only**; no placeholder pages or navigation entries are added here.
 | Candidate API calls `infrastructure/database/candidate_read_model.py` directly | Introduce an application read boundary in a later read-path slice |
 | `api/v1/candidate_schemas.py` maps infrastructure `CandidateSummary` / `CandidateDetail` DTOs | Revisit DTO ownership with that read boundary |
 | Correlation has an `incident-management` / `OPERATIONAL_INCIDENT` recurrence branch requiring at least two distinct Signals | Revisit source-independent problem-family semantics in a correlation slice; preserve current behavior now |
-| Explicit connector/normalizer/registry contracts do not exist | Extract minimal contracts with the planned connector vertical slice |
 
-None of these remaining gaps is fixed by this documentation package.
+These remaining gaps are intentionally deferred beyond this connector package.

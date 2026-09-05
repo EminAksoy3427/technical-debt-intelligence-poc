@@ -6,11 +6,12 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from alembic import command
-from app.core.config import Settings
-from app.dependency_lifecycle_ingestion import (
-    DEPENDENCY_LIFECYCLE_SOURCE_SYSTEM,
-    normalize_dependency_lifecycle_finding,
+from app.connectors.dependency_lifecycle import (
+    acquire_dependency_lifecycle_observations,
+    normalize_dependency_lifecycle_observation,
 )
+from app.core.config import Settings
+from app.dependency_lifecycle_ingestion import DEPENDENCY_LIFECYCLE_SOURCE_SYSTEM
 from app.infrastructure.database.dependency_lifecycle_loading import (
     resolve_dependency_lifecycle_affected_asset,
 )
@@ -21,7 +22,6 @@ from app.infrastructure.database.signal_persistence import (
     SignalPersistenceResult,
     persist_normalized_signal,
 )
-from app.infrastructure.dependency_lifecycle import load_dependency_lifecycle_findings
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 SOURCE_PATH = (
@@ -54,13 +54,14 @@ def _remove_preexisting_lifecycle_observation(
 
 
 @pytest.mark.integration
-def test_dependency_lifecycle_finding_flows_to_mssql_and_deduplicates() -> None:
+def test_dependency_lifecycle_observation_flows_to_mssql_and_deduplicates() -> None:
     app_settings = Settings()
     if app_settings.database_url is None:
         pytest.skip("DATABASE_URL is not configured")
 
     command.upgrade(Config(str(BACKEND_ROOT / "alembic.ini")), "head")
-    finding = load_dependency_lifecycle_findings(SOURCE_PATH)[0]
+    observation = acquire_dependency_lifecycle_observations(SOURCE_PATH)[0]
+    finding = observation.record
     engine = create_database_engine(app_settings)
     try:
         with Session(engine) as session:
@@ -76,16 +77,18 @@ def test_dependency_lifecycle_finding_flows_to_mssql_and_deduplicates() -> None:
                     session,
                     finding,
                 )
-                first_ingestion = normalize_dependency_lifecycle_finding(
-                    finding,
+                first_ingestion = normalize_dependency_lifecycle_observation(
+                    observation,
                     affected_asset=affected_asset,
                 )
-                repeated_finding = load_dependency_lifecycle_findings(SOURCE_PATH)[0]
-                repeated_ingestion = normalize_dependency_lifecycle_finding(
-                    repeated_finding,
+                repeated_observation = acquire_dependency_lifecycle_observations(
+                    SOURCE_PATH
+                )[0]
+                repeated_ingestion = normalize_dependency_lifecycle_observation(
+                    repeated_observation,
                     affected_asset=resolve_dependency_lifecycle_affected_asset(
                         session,
-                        repeated_finding,
+                        repeated_observation.record,
                     ),
                 )
                 first_result = persist_normalized_signal(session, first_ingestion)
