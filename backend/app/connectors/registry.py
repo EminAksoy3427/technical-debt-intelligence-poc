@@ -6,7 +6,12 @@ from typing import Final
 
 from app.connectors.contracts import ConnectorRegistration
 from app.connectors.dependency_lifecycle import DEPENDENCY_LIFECYCLE_CONNECTOR
+from app.connectors.github_issues import GITHUB_ISSUES_CONNECTOR
 from app.infrastructure.dependency_lifecycle import DependencyLifecycleFinding
+from app.infrastructure.github_issues import (
+    GitHubIssueRecord,
+    GitHubIssuesReadConfiguration,
+)
 
 
 @dataclass(frozen=True)
@@ -50,18 +55,22 @@ class ConnectorRegistry[SourceConfiguration, SourceRecord]:
             raise KeyError(f"Unknown connector identifier: {connector_id}") from None
 
 
-CONNECTOR_REGISTRY: Final = ConnectorRegistry[Path, DependencyLifecycleFinding](
-    registrations=(DEPENDENCY_LIFECYCLE_CONNECTOR,),
+type RegisteredConnector = (
+    ConnectorRegistration[Path, DependencyLifecycleFinding]
+    | ConnectorRegistration[GitHubIssuesReadConfiguration, GitHubIssueRecord]
+)
+
+CONNECTOR_REGISTRY: Final = ConnectorRegistry(
+    registrations=(
+        DEPENDENCY_LIFECYCLE_CONNECTOR,
+        GITHUB_ISSUES_CONNECTOR,
+    ),
 )
 
 
-def list_connectors() -> tuple[
-    ConnectorRegistration[Path, DependencyLifecycleFinding], ...
-]:
+def list_connectors() -> tuple[RegisteredConnector, ...]:
     return CONNECTOR_REGISTRY.list()
 
 
-def get_connector(
-    connector_id: str,
-) -> ConnectorRegistration[Path, DependencyLifecycleFinding]:
+def get_connector(connector_id: str) -> RegisteredConnector:
     return CONNECTOR_REGISTRY.get(connector_id)

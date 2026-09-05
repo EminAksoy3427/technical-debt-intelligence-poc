@@ -18,6 +18,7 @@ from app.connectors.dependency_lifecycle import (
     acquire_dependency_lifecycle_observations,
     normalize_dependency_lifecycle_observation,
 )
+from app.connectors.github_issues import GITHUB_ISSUES_CONNECTOR
 from app.connectors.registry import ConnectorRegistry, get_connector, list_connectors
 from app.dependency_lifecycle_ingestion import normalize_dependency_lifecycle_finding
 from app.domain.assets import CanonicalAssetRef
@@ -125,11 +126,19 @@ def test_dependency_lifecycle_connector_preserves_source_errors(tmp_path: Path) 
         acquire_dependency_lifecycle_observations(missing_source)
 
 
-def test_registry_lists_and_resolves_the_reference_connector() -> None:
+def test_registry_lists_and_resolves_explicit_connectors() -> None:
     registrations = list_connectors()
 
-    assert registrations == (DEPENDENCY_LIFECYCLE_CONNECTOR,)
+    assert tuple(item.descriptor.connector_id for item in registrations) == (
+        "dependency-lifecycle",
+        "github-issues",
+    )
+    assert registrations == (
+        DEPENDENCY_LIFECYCLE_CONNECTOR,
+        GITHUB_ISSUES_CONNECTOR,
+    )
     assert get_connector("dependency-lifecycle") is DEPENDENCY_LIFECYCLE_CONNECTOR
+    assert get_connector("github-issues") is GITHUB_ISSUES_CONNECTOR
     assert registrations == list_connectors()
 
 
@@ -169,8 +178,10 @@ def test_connector_modules_do_not_depend_on_downstream_or_delivery_concerns() ->
     modules = (
         "app.connectors.contracts",
         "app.connectors.dependency_lifecycle",
+        "app.connectors.github_issues",
         "app.connectors.registry",
         "app.infrastructure.dependency_lifecycle",
+        "app.infrastructure.github_issues",
     )
     source = "\n".join(
         inspect.getsource(importlib.import_module(module)).lower()

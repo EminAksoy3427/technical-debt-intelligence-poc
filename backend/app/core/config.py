@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     database_url: SecretStr | None = None
     database_connection_timeout_seconds: int = Field(default=5, gt=0)
+    github_repository_owner: str | None = None
+    github_repository_name: str | None = None
+    github_request_timeout_seconds: int = Field(default=5, gt=0)
     cors_allowed_origins: list[str] = Field(default_factory=list)
     allow_development_data_population: bool = False
 

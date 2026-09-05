@@ -6,6 +6,7 @@ requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.13.0,<2.0",
     "fastapi>=0.115.0",
+    "httpx>=0.28.0",
     "networkx==3.6.1",
     "pydantic-settings>=2.0.0",
     "pyodbc>=5.0.0,<6.0",
@@ -15,7 +16,6 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "httpx>=0.28.0",
     "pydriller==2.10",
     "pytest>=8.0.0",
     "ruff>=0.8.0",
@@ -26,6 +26,7 @@ dev = [
 testpaths = ["tests"]
 pythonpath = ["."]
 markers = [
+    "external: requires a live external HTTP source",
     "integration: requires externally configured infrastructure",
 ]
 

@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 4 September 2026, Day 2 / Package 2. **CURRENT** describes repository
+Baseline: 5 September 2026, Day 2 / Package 3B. **CURRENT** describes repository
 code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both views.
 
@@ -8,9 +8,9 @@ records the decision; [domain invariants](../domain/invariants.md) govern both v
 
 ```text
 Sources
-  → source acquisition (explicit Connector for dependency-lifecycle)
-  → SourceObservation (dependency-lifecycle)
-  → source-specific normalizers
+  → source acquisition (explicit Connector for dependency-lifecycle and github-issues)
+  → SourceObservation (dependency-lifecycle, github-issues)
+  → source-specific normalizers (dependency-lifecycle only; github-issues not yet)
   → NormalizedSignal (Signal + Evidence)
   → deterministic Candidate correlation
   → persistence / read model
@@ -23,7 +23,7 @@ persisted data; they do not scan sources or trigger correlation.
 
 | Responsibility | Current implementation |
 | --- | --- |
-| Acquisition | Dependency lifecycle uses the explicit connector seam in `backend/app/connectors`; Semgrep and Git SATD scanners remain in `backend/app/infrastructure`; persisted incident loading remains under `infrastructure/database` |
+| Acquisition | Dependency lifecycle and GitHub Issues use the explicit connector seam in `backend/app/connectors`; Semgrep and Git SATD scanners remain in `backend/app/infrastructure`; persisted incident loading remains under `infrastructure/database` |
 | Normalization | `semgrep_ingestion.py`, `git_history_ingestion.py`, `dependency_lifecycle_ingestion.py`, `incident_ingestion.py` under `backend/app` |
 | Canonical output | `backend/app/signal_ingestion.py`: `NormalizedSignal` bundles a Signal with matching, nonempty Evidence |
 | Correlation | `backend/app/candidate_correlation.py`: canonical asset and problem-family grouping, deterministic identifiers and rationale |
@@ -52,9 +52,11 @@ known, non-blocking gap, not an implied application port.
 
 There is currently no Agent Tool Contract, Tool Registry, Policy Port, Knowledge
 provider contract, TechnicalDebt lifecycle implementation, or agent runtime.
-The dependency-lifecycle vertical slice now implements the first explicit
-Connector, SourceObservation, functional normalizer boundary, and Connector
-Registry contracts. The other acquisition paths remain legacy-compatible.
+The dependency-lifecycle vertical slice implements an explicit Connector,
+SourceObservation, functional normalizer boundary, and Connector Registry
+contracts. GitHub Issues is registered as a second explicit connector and
+stops at SourceObservation. The other acquisition paths remain
+legacy-compatible.
 
 ### CURRENT connector acquisition seam
 
@@ -73,11 +75,31 @@ existing canonical normalization function; required asset resolution remains an
 explicit caller dependency. The Registry composes registrations explicitly in
 code, with deterministic order and duplicate identifier rejection.
 
-`dependency-lifecycle` is the first and only source registered against this
-contract. Semgrep, Git SATD, and Incident ingestion are not yet migrated. The
-Connector and Registry have no Candidate or TechnicalDebt knowledge, and this
-seam is not a dynamic plugin system: it performs no runtime discovery, scanning,
-entry-point loading, or marketplace orchestration.
+Registered reference connectors:
+
+1. `dependency-lifecycle` — transport: local JSON
+2. `github-issues` — transport: HTTPS, READ-only
+
+GitHub Issues flow:
+
+```text
+GitHub REST API
+  → HTTP GET
+  → GitHubIssueRecord
+  → SourceObservation
+```
+
+GitHub Issues are not yet normalized into a canonical Signal. GitHub Issues
+are not Candidates. GitHub Issues are not TechnicalDebt. The GitHub connector
+is acquisition-only. Pagination, polling, and checkpoints are not implemented;
+the current GET reads a single first page of open issues, which is sufficient
+for the public two-issue demo source.
+
+`dependency-lifecycle` remains the only registered source with a canonical
+normalizer. Semgrep, Git SATD, and Incident ingestion are not yet migrated.
+Connectors and the Registry have no Candidate or TechnicalDebt knowledge, and
+this seam is not a dynamic plugin system: it performs no runtime discovery,
+scanning, entry-point loading, or marketplace orchestration.
 
 ## TARGET: Option B
 
@@ -119,7 +141,7 @@ the project; executable approval/policy/lifecycle machinery is future work.
 
 | Surface | Current status / intended responsibility |
 | --- | --- |
-| Connector Contract | Implemented for dependency-lifecycle: acquire observations/findings with provenance |
+| Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
 | Agent Tool Contract | Describe bounded capabilities and their inputs/results |
