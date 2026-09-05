@@ -30,7 +30,9 @@ Connector, SourceObservation, and Connector Registry contracts exist for
 registered sources. An explicit Agent Tool contract, Tool Registry, and
 Policy boundary exist for Candidate-scoped READ tools. Agent Runtime,
 provider/LLM integration, Agent API, and a TechnicalDebt lifecycle are not
-implemented today. See the
+implemented today. Typed Structured Assessment and AgentRun, ToolExecution,
+and PolicyDecision audit persistence now provide a durable foundation without
+granting lifecycle authority. See the
 [architecture overview](docs/architecture/overview.md).
 
 ## Repository entry points

@@ -51,6 +51,9 @@ Application tables:
 - `evidence`
 - `candidates`
 - `candidate_signals`
+- `agent_runs`
+- `tool_executions`
+- `policy_decisions`
 
 Also present at runtime after Alembic has run:
 
@@ -90,6 +93,9 @@ erDiagram
     signals ||--o{ evidence : evidence
     candidates ||--o{ candidate_signals : membership
     signals ||--o{ candidate_signals : membership
+    candidates ||--o{ agent_runs : investigations
+    agent_runs ||--o{ tool_executions : executions
+    tool_executions ||--o| policy_decisions : decision
 
     enterprise_assets {
         int id PK
@@ -152,6 +158,40 @@ erDiagram
         uuid candidate_id PK, FK
         uuid signal_id PK, FK
     }
+    agent_runs {
+        uuid agent_run_id PK
+        uuid candidate_id FK
+        string status
+        datetime created_at
+        datetime started_at
+        datetime completed_at
+        json structured_assessment
+        string stop_reason
+    }
+    tool_executions {
+        uuid tool_execution_id PK
+        uuid agent_run_id FK
+        int sequence_number
+        string tool_id
+        string tool_version
+        string input_hash
+        json safe_input_summary
+        string status
+        int duration_ms
+        json result_references
+    }
+    policy_decisions {
+        uuid tool_execution_id PK, FK
+        string decision
+        string requested_effect
+        string requested_risk
+        json required_scopes
+        json granted_scopes
+        string maximum_risk
+        string rule_id
+        string reason_code
+        datetime decided_at
+    }
 ```
 
 Notes that match the ORM:
@@ -164,16 +204,24 @@ Notes that match the ORM:
 - `candidates` reference one canonical enterprise asset.
 - `candidate_signals` is the Candidate–Signal membership table.
 - Candidates do not own Evidence rows directly; Evidence remains on Signal.
+- AgentRuns belong to a Candidate and store an optional validated Structured
+  Assessment JSON document.
+- ToolExecutions are ordered audit records within one AgentRun. Their input
+  summary is limited to allowlisted Candidate identity and paired with a
+  canonical SHA-256 hash; raw tool payloads are not stored.
+- A ToolExecution has at most one PolicyDecision, keyed by the ToolExecution
+  identifier. Policy facts record registry metadata and trusted authorization
+  context without duplicating the AgentRun identifier.
 
 ## Migration history
 
 Exact current chain, single head, no branching:
 
 ```text
-20260826_01 → 20260827_01 → 20260828_01 → 20260831_01
+20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01
 ```
 
-Current head: **`20260831_01`**.
+Current head: **`20260905_01`**.
 
 | Revision | Purpose |
 | --- | --- |
@@ -181,6 +229,7 @@ Current head: **`20260831_01`**.
 | `20260827_01` | enterprise estate foundation |
 | `20260828_01` | signals + evidence |
 | `20260831_01` | candidates + `candidate_signals` |
+| `20260905_01` | AgentRun, ToolExecution, and PolicyDecision audit persistence |
 
 This inventory describes repository revisions. It does not assert the applied
 revision of any live database until that database is inspected.
@@ -253,18 +302,18 @@ Do not always downgrade. Full production rollback automation does not exist.
 
 ## Migration verification coverage
 
-Statuses below are honest against currently inspected evidence. This package
-did not add new proof.
+Statuses below are honest against currently inspected evidence, including the
+Package 3 migration compilation and configured-MSSQL integration run.
 
 | Claim | Status | Evidence |
 | --- | --- | --- |
-| Single head | **PROVEN** | Alembic script directory; `20260831_01` is the only head |
+| Single head | **PROVEN** | Alembic script directory; `20260905_01` is the only head |
 | Clean DB → head | **PARTIALLY PROVEN** | live MSSQL upgrade-to-head exists; a guaranteed empty-database bootstrap is not a dedicated proven path |
-| Existing DB → head | **PARTIALLY PROVEN** | integration tests call `alembic upgrade head` against a configured database that may already be at head |
+| Existing DB → head | **PARTIALLY PROVEN** | the configured MSSQL database successfully ran `upgrade head` and exposed the new schema; its starting revision was not separately captured |
 | Live downgrade | **NOT PROVEN** | downgrade SQL is compiled in-process (`as_sql`); no live MSSQL downgrade test was found |
 | Upgrade after downgrade | **NOT PROVEN** | no round-trip test exists |
-| ORM/schema correspondence | **PARTIALLY PROVEN** | ORM metadata, Alembic `env.py` imports, and compiled CREATE TABLE SQL are checked; live column/constraint parity is not fully proven |
-| Actual MSSQL migration | **PARTIALLY PROVEN** | integration tests upgrade a configured MSSQL database to head and assert expected table names when `DATABASE_URL` is present |
+| ORM/schema correspondence | **PARTIALLY PROVEN** | ORM metadata, Alembic `env.py` imports, compiled MSSQL CREATE TABLE SQL, and live audit table/FK/index inspection are checked; complete live column/constraint parity is not proven |
+| Actual MSSQL migration | **PROVEN for Package 3 audit persistence** | integration tests upgraded configured MSSQL to head, inspected audit tables/FKs/index, and round-tripped AgentRun, Structured Assessment, ToolExecution, and PolicyDecision data |
 
 Do not improve these claims without adding or running new proof.
 

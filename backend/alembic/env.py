@@ -1,5 +1,6 @@
 from logging.config import fileConfig
 
+import app.infrastructure.database.agent_audit_models  # noqa: F401
 import app.infrastructure.database.candidate_models  # noqa: F401
 import app.infrastructure.database.enterprise_estate_models  # noqa: F401
 import app.infrastructure.database.signal_models  # noqa: F401

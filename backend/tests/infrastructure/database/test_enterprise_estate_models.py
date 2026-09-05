@@ -10,6 +10,11 @@ from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy import CheckConstraint, UniqueConstraint
 
+from app.infrastructure.database.agent_audit_models import (
+    AgentRunModel,
+    PolicyDecisionModel,
+    ToolExecutionModel,
+)
 from app.infrastructure.database.base import Base
 from app.infrastructure.database.candidate_models import (
     CandidateModel,
@@ -34,6 +39,9 @@ EXPECTED_TABLES = {
     "evidence",
     "candidates",
     "candidate_signals",
+    "agent_runs",
+    "tool_executions",
+    "policy_decisions",
 }
 
 
@@ -191,8 +199,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260831_01"
-    assert head.down_revision == "20260828_01"
+    assert head.revision == "20260905_01"
+    assert head.down_revision == "20260831_01"
 
     output = StringIO()
     context = MigrationContext.configure(
@@ -209,6 +217,9 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert EvidenceModel.__table__.name == "evidence"
     assert CandidateModel.__table__.name == "candidates"
     assert CandidateSignalModel.__table__.name == "candidate_signals"
+    assert AgentRunModel.__table__.name == "agent_runs"
+    assert ToolExecutionModel.__table__.name == "tool_executions"
+    assert PolicyDecisionModel.__table__.name == "policy_decisions"
 
     migration_sql = output.getvalue()
     for table_name in EXPECTED_TABLES:
@@ -222,3 +233,6 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert "DROP TABLE signals" in downgrade_sql
     assert "DROP TABLE candidate_signals" in downgrade_sql
     assert "DROP TABLE candidates" in downgrade_sql
+    assert "DROP TABLE policy_decisions" in downgrade_sql
+    assert "DROP TABLE tool_executions" in downgrade_sql
+    assert "DROP TABLE agent_runs" in downgrade_sql

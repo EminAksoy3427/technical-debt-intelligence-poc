@@ -18,6 +18,9 @@ EXPECTED_TABLES = {
     "evidence",
     "candidates",
     "candidate_signals",
+    "agent_runs",
+    "tool_executions",
+    "policy_decisions",
 }
 
 

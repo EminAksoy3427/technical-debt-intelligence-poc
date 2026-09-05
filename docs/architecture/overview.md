@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 2 / Package 5 complete. **CURRENT** describes
+Baseline: 5 September 2026, Day 3 / Package 3 complete. **CURRENT** describes
 repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both
 views. Connector extension is documented in
@@ -69,10 +69,11 @@ known, non-blocking gap, not an implied application port.
 An explicit typed Agent Tool contract, deterministic Tool Registry, and
 deterministic Policy boundary exist for Candidate-scoped READ tools:
 `read_candidate_evidence`, `read_candidate_dependency_context`, and
-`read_candidate_enterprise_context`. There is currently no Agent Runtime,
-Knowledge provider contract, TechnicalDebt lifecycle implementation,
-provider/LLM integration, Agent API, Structured Assessment, production WRITE
-tools, or persisted AgentRun / ToolExecution / PolicyDecision.
+`read_candidate_enterprise_context`. Typed Structured Assessment, AgentRun,
+ToolExecution, and PolicyDecision audit contracts and persistence now exist as
+the foundation for a future bounded runtime. There is currently no Agent
+Runtime, Knowledge provider contract, TechnicalDebt lifecycle implementation,
+provider/LLM integration, Agent API, or production WRITE tool.
 The dependency-lifecycle vertical slice implements an explicit Connector,
 SourceObservation, functional normalizer boundary, and Connector Registry
 contracts. GitHub Issues is registered as a second explicit connector and
@@ -180,7 +181,7 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
 | Agent Tool Contract | Implemented for Candidate-scoped READ tools: typed inputs/results. Agent Runtime, Agent API, and WRITE tools are not implemented |
 | Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
-| Policy Port | Implemented as a deterministic in-process Policy boundary. Not persisted; not Agent Runtime authorization |
+| Policy Port | Implemented as a deterministic in-process Policy boundary. PolicyDecision audit persistence exists, but no Agent Runtime emits records yet and persistence grants no authorization |
 | Knowledge capability/provider | Supply contextual knowledge through a replaceable boundary |
 
 Introduce agent/tool/policy contracts only with their implemented vertical
@@ -219,10 +220,10 @@ by `backend/alembic.ini` and `backend/alembic/env.py`.
 Repository revision chain:
 
 ```text
-20260826_01 → 20260827_01 → 20260828_01 → 20260831_01
+20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01
 ```
 
-The single repository head is **20260831_01**. This inventory does not assert
+The single repository head is **20260905_01**. This inventory does not assert
 the applied revision of any live database.
 
 | Revision | Schema responsibility |
@@ -231,16 +232,17 @@ the applied revision of any live database.
 | `20260827_01` | `enterprise_assets`, `teams`, `asset_ownerships`, `asset_relationships`, `incidents` |
 | `20260828_01` | `signals`, `evidence` |
 | `20260831_01` | `candidates`, `candidate_signals` |
+| `20260905_01` | `agent_runs`, `tool_executions`, `policy_decisions` |
 
 Signal references its affected enterprise asset; Evidence references Signal.
 Candidate links to Signals through `candidate_signals` and references its
 canonical enterprise asset. Ownerships, relationships, and incidents enrich
 enterprise context; these facts are not validation or causal conclusions.
-**No TechnicalDebt table exists. NO schema change was made in this package.**
-Alembic `env.py` now imports enterprise, signal, and candidate ORM models, so
-target metadata includes `candidates` and `candidate_signals`. That metadata
-completeness was corrected during the 4 September re-baseline; it required
-NO schema change and NO migration revision.
+**No TechnicalDebt table exists.** Agent audit persistence records bounded run
+state, grounded assessment JSON, safe tool traces, and policy facts. It does not
+validate a Candidate, create TechnicalDebt, authorize action, or implement an
+Agent Runtime. Alembic `env.py` imports the audit ORM models so target metadata
+matches the new schema.
 
 ## CURRENT frontend baseline
 
