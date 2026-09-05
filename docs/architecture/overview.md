@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 3 / Package 4 complete. **CURRENT** describes
+Baseline: 5 September 2026, Day 3 / Package 5 complete. **CURRENT** describes
 repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both
 views. Connector extension is documented in
@@ -76,13 +76,22 @@ explicit provider decision port and a deterministic scripted provider, enforces
 iteration/tool/time budgets, evaluates registry-owned metadata through the
 deterministic Policy boundary before execution, and checkpoints audit records.
 There is currently no live provider/LLM integration, Knowledge provider
-contract, TechnicalDebt lifecycle implementation, Agent API, or production
-WRITE tool.
+contract, TechnicalDebt lifecycle implementation, Agent Investigation
+frontend, or production WRITE tool.
 
 ```text
 Candidate → AgentRun → provider decision → Tool Registry → Policy
           → Candidate READ tool → durable audit → Structured Assessment
 ```
+
+The bounded runtime is exposed only through Candidate-scoped POST/GET AgentRun
+routes. POST accepts no prompt, tool, authorization, provider, or model
+configuration. Server composition supplies a deterministic evidence-driven PoC
+provider and the existing READ/LOW-risk authorization. GET loads a persisted
+aggregate scoped by both Candidate and AgentRun identity and exposes only safe
+product/audit response models. Runtime checkpoint commits are not enclosed in
+an API-wide transaction, so terminal FAILED and ABSTAINED resources remain
+durable. There is still no Agent Investigation frontend.
 
 Provider-visible context contains bounded tool descriptors and validated tool
 results, not sessions, settings, credentials, authorization authority, hidden
@@ -194,7 +203,7 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
-| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime. Agent API and production WRITE tools are not implemented |
+| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime and Candidate-scoped POST/GET AgentRun API. Agent Investigation frontend and production WRITE tools are not implemented |
 | Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
 | Policy Port | Implemented as a deterministic in-process Policy boundary. The runtime persists its decisions; persistence grants no authorization |
 | Investigation provider | Typed next-step port plus deterministic scripted provider implemented. No live model/provider adapter exists |

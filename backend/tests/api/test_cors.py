@@ -20,6 +20,10 @@ def _application_with_cors(origins: list[str]) -> FastAPI:
     def probe() -> dict[str, str]:
         return {"status": "ok"}
 
+    @application.post("/probe")
+    def create_probe() -> dict[str, str]:
+        return {"status": "created"}
+
     return application
 
 
@@ -63,7 +67,7 @@ def test_unconfigured_origin_does_not_receive_allow_origin() -> None:
     }
 
 
-def test_configured_origin_preflight_allows_get() -> None:
+def test_configured_origin_preflight_allows_get_and_post_only() -> None:
     client = TestClient(_application_with_cors([CONFIGURED_ORIGIN]))
 
     response = client.options(
@@ -82,7 +86,25 @@ def test_configured_origin_preflight_allows_get() -> None:
         for method in response.headers["access-control-allow-methods"].split(",")
     }
     assert "GET" in allowed_methods
-    assert "POST" not in allowed_methods
+    assert "POST" in allowed_methods
     assert "PUT" not in allowed_methods
     assert "DELETE" not in allowed_methods
     assert "PATCH" not in allowed_methods
+
+
+def test_configured_origin_preflight_allows_post_json_content_type() -> None:
+    client = TestClient(_application_with_cors([CONFIGURED_ORIGIN]))
+
+    response = client.options(
+        "/probe",
+        headers={
+            "Origin": CONFIGURED_ORIGIN,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "Content-Type",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == CONFIGURED_ORIGIN
+    allowed_headers = response.headers["access-control-allow-headers"].lower()
+    assert "content-type" in allowed_headers

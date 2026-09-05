@@ -133,7 +133,30 @@ def load_agent_run_audit(
     session: Session,
     agent_run_id: UUID,
 ) -> AgentRunAuditAggregate | None:
-    persisted_run = session.scalar(
+    return _load_agent_run_audit(session, agent_run_id=agent_run_id)
+
+
+def load_candidate_agent_run_audit(
+    session: Session,
+    *,
+    candidate_id: UUID,
+    agent_run_id: UUID,
+) -> AgentRunAuditAggregate | None:
+    """Load one aggregate only when it belongs to the supplied Candidate."""
+    return _load_agent_run_audit(
+        session,
+        agent_run_id=agent_run_id,
+        candidate_id=candidate_id,
+    )
+
+
+def _load_agent_run_audit(
+    session: Session,
+    *,
+    agent_run_id: UUID,
+    candidate_id: UUID | None = None,
+) -> AgentRunAuditAggregate | None:
+    statement = (
         select(AgentRunModel)
         .options(
             selectinload(AgentRunModel.tool_executions).selectinload(
@@ -142,6 +165,9 @@ def load_agent_run_audit(
         )
         .where(AgentRunModel.agent_run_id == agent_run_id)
     )
+    if candidate_id is not None:
+        statement = statement.where(AgentRunModel.candidate_id == candidate_id)
+    persisted_run = session.scalar(statement)
     if persisted_run is None:
         return None
 

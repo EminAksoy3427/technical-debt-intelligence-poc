@@ -8,6 +8,10 @@ APP_TITLE = "Technical Debt Intelligence & Governance PoC"
 HEALTH_PATH = "/api/v1/health"
 CANDIDATES_PATH = "/api/v1/candidates"
 CANDIDATE_DETAIL_PATH = "/api/v1/candidates/{candidate_id}"
+CANDIDATE_AGENT_RUNS_PATH = "/api/v1/candidates/{candidate_id}/agent-runs"
+CANDIDATE_AGENT_RUN_PATH = (
+    "/api/v1/candidates/{candidate_id}/agent-runs/{agent_run_id}"
+)
 CONNECTORS_PATH = "/api/v1/connectors"
 CONNECTOR_DETAIL_PATH = "/api/v1/connectors/{connector_id}"
 
@@ -95,6 +99,74 @@ def test_openapi_candidate_read_contract_has_no_governance_fields() -> None:
     ]
     assert "dependency graph" in reachability_description
     assert "not guaranteed outage or causal impact" in reachability_description
+
+
+def test_openapi_candidate_agent_run_contract_is_server_composed() -> None:
+    schema = _openapi_schema()
+    paths = schema["paths"]
+
+    assert set(paths[CANDIDATE_AGENT_RUNS_PATH]) == {"post"}
+    assert set(paths[CANDIDATE_AGENT_RUN_PATH]) == {"get"}
+
+    post_operation = paths[CANDIDATE_AGENT_RUNS_PATH]["post"]
+    get_operation = paths[CANDIDATE_AGENT_RUN_PATH]["get"]
+    assert "requestBody" not in post_operation
+    assert post_operation["responses"]["201"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/AgentRunResponse"
+    assert get_operation["responses"]["200"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/AgentRunResponse"
+
+    serialized_post = str(post_operation).lower()
+    for forbidden in (
+        "prompt",
+        "tools",
+        "scope",
+        "approval",
+        "provider",
+        "model_name",
+        "system_prompt",
+        "reasoning",
+        "scratchpad",
+        "chain-of-thought",
+        "credentials",
+        "database_url",
+    ):
+        assert forbidden not in serialized_post
+
+    agent_schemas = {
+        name: component
+        for name, component in schema["components"]["schemas"].items()
+        if any(
+            term in name
+            for term in (
+                "AgentRun",
+                "Assessment",
+                "GroundedClaim",
+                "PolicyDecision",
+                "ToolExecution",
+            )
+        )
+    }
+    exposed_properties = {
+        property_name.lower()
+        for component in agent_schemas.values()
+        for property_name in component.get("properties", {})
+    }
+    for forbidden in (
+        "prompt",
+        "approval",
+        "provider",
+        "model_name",
+        "system_prompt",
+        "reasoning",
+        "scratchpad",
+        "chain-of-thought",
+        "credentials",
+        "database_url",
+    ):
+        assert forbidden not in exposed_properties
 
 
 def test_openapi_connector_inventory_contract() -> None:

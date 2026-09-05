@@ -31,8 +31,10 @@ registered sources. An explicit Agent Tool contract, Tool Registry, and
 Policy boundary exist for Candidate-scoped READ tools. A bounded synchronous
 Agent Runtime now connects those tools to durable AgentRun, ToolExecution,
 PolicyDecision, and Structured Assessment audit records. A deterministic
-scripted provider proves orchestration without a real model. Live provider/LLM
-integration, Agent API, and a TechnicalDebt lifecycle are not implemented.
+server-owned provider now exposes that runtime through Candidate-scoped POST/GET
+AgentRun APIs without accepting client prompts or authorization controls. Live
+provider/LLM integration, an Agent Investigation frontend, and a TechnicalDebt
+lifecycle are not implemented.
 The runtime investigates only and grants no lifecycle authority. See the
 [architecture overview](docs/architecture/overview.md).
 
@@ -75,7 +77,10 @@ see [frontend/.env.example](frontend/.env.example). A missing API base URL
 produces an explicit error; there is no runtime mock fallback.
 
 Current API routes: `GET /api/v1/health`, `GET /api/v1/candidates`,
-`GET /api/v1/candidates/{candidate_id}`, and `GET /api/v1/connectors`.
+`GET /api/v1/candidates/{candidate_id}`,
+`POST /api/v1/candidates/{candidate_id}/agent-runs`,
+`GET /api/v1/candidates/{candidate_id}/agent-runs/{agent_run_id}`, and
+`GET /api/v1/connectors`.
 Current frontend routes: `/candidates`, `/candidates/[id]`, and `/sources`.
 `/` redirects to `/candidates`. Detailed executable contracts are served
 at `/openapi.json` and browsable at `/docs` on the running FastAPI app.

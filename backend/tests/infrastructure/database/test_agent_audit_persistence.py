@@ -38,6 +38,7 @@ from app.infrastructure.database.agent_audit_persistence import (
     create_agent_run,
     get_agent_run,
     load_agent_run_audit,
+    load_candidate_agent_run_audit,
     update_agent_run,
 )
 from app.infrastructure.database.candidate_models import (
@@ -318,6 +319,29 @@ def test_load_missing_run_returns_none(database_engine: Engine) -> None:
     with Session(database_engine) as session:
         assert load_agent_run_audit(session, uuid4()) is None
         assert get_agent_run(session, uuid4()) is None
+
+
+def test_candidate_scoped_load_does_not_return_another_candidates_run(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        create_agent_run(session, _created_run())
+        session.commit()
+
+    with Session(database_engine) as session:
+        matching = load_candidate_agent_run_audit(
+            session,
+            candidate_id=CANDIDATE_ID,
+            agent_run_id=RUN_ID,
+        )
+        cross_candidate = load_candidate_agent_run_audit(
+            session,
+            candidate_id=uuid4(),
+            agent_run_id=RUN_ID,
+        )
+
+    assert matching is not None
+    assert cross_candidate is None
 
 
 def test_audit_tables_contain_only_the_expected_rows(database_engine: Engine) -> None:

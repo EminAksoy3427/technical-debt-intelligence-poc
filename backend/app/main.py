@@ -4,12 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.v1.router import router as v1_router
 from app.core.config import Settings, settings
 
-_CORS_ALLOWED_METHODS = ("GET", "HEAD", "OPTIONS")
-_CORS_ALLOWED_HEADERS = ("Accept",)
+_CORS_ALLOWED_METHODS = ("GET", "HEAD", "OPTIONS", "POST")
+_CORS_ALLOWED_HEADERS = ("Accept", "Content-Type")
 
 
 def apply_cors(application: FastAPI, app_settings: Settings) -> None:
-    """Attach settings-backed CORS for read-only browser GET access."""
+    """Attach settings-backed CORS for the configured browser API surface."""
     application.add_middleware(
         CORSMiddleware,
         allow_origins=app_settings.cors_allowed_origins,
