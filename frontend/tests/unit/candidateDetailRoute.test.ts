@@ -59,6 +59,7 @@ describe('Candidate Detail route source', () => {
     expect(detailPage).toContain("viewState === 'error'")
     expect(detailPage).toContain('id="candidate-overview"')
     expect(detailPage).toContain('id="candidate-evidence-context"')
+    expect(detailPage).toContain('CandidateAgentInvestigation')
   })
 
   it('keeps Pool UUID navigation compatible with the Detail route', () => {

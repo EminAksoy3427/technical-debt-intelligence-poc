@@ -19,6 +19,9 @@ const enterpriseContext = readFrontendSource(
 const dependencyContext = readFrontendSource(
   'components/candidate/CandidateDependencyContext.vue',
 )
+const agentInvestigation = readFrontendSource(
+  'components/candidate/CandidateAgentInvestigation.vue',
+)
 
 const candidateDetailSources = [
   detailPage,
@@ -26,6 +29,7 @@ const candidateDetailSources = [
   signalList,
   enterpriseContext,
   dependencyContext,
+  agentInvestigation,
 ].join('\n')
 
 describe('Candidate Detail information architecture', () => {
@@ -75,14 +79,22 @@ describe('Candidate Detail information architecture', () => {
     expect(detailPage).toContain(':href="`#${section.id}`"')
     expect(detailPage).toContain("id: 'candidate-overview'")
     expect(detailPage).toContain("id: 'candidate-evidence-context'")
+    expect(detailPage).toContain("id: 'candidate-agent-investigation'")
     expect(detailPage).toContain("label: 'Overview'")
     expect(detailPage).toContain("label: 'Evidence & Context'")
-    expect(detailPage).not.toContain('candidate-investigation')
+    expect(detailPage).toContain("label: 'Agent Investigation'")
     expect(detailPage).not.toContain('candidate-history')
   })
 
-  it('does not render Investigation, History, or placeholder capability copy', () => {
-    expect(candidateDetailSources).not.toMatch(/\bInvestigation\b/)
+  it('places Agent Investigation after Evidence & Context and omits History placeholders', () => {
+    expect(agentInvestigation).toContain('id="candidate-agent-investigation"')
+    expect(detailPage).toContain('CandidateAgentInvestigation')
+    expect(agentInvestigation).toContain('Agent Investigation')
+
+    const evidenceStart = detailPage.indexOf('id="candidate-evidence-context"')
+    const investigationStart = detailPage.indexOf('CandidateAgentInvestigation')
+    expect(investigationStart).toBeGreaterThan(evidenceStart)
+
     expect(candidateDetailSources).not.toMatch(/\bHistory\b/)
     expect(candidateDetailSources).not.toMatch(/coming soon/i)
     expect(candidateDetailSources).not.toMatch(/agent analysis/i)

@@ -32,9 +32,10 @@ Policy boundary exist for Candidate-scoped READ tools. A bounded synchronous
 Agent Runtime now connects those tools to durable AgentRun, ToolExecution,
 PolicyDecision, and Structured Assessment audit records. A deterministic
 server-owned provider now exposes that runtime through Candidate-scoped POST/GET
-AgentRun APIs without accepting client prompts or authorization controls. Live
-provider/LLM integration, an Agent Investigation frontend, and a TechnicalDebt
-lifecycle are not implemented.
+AgentRun APIs without accepting client prompts or authorization controls.
+Candidate Detail includes an Agent Investigation section that calls those APIs.
+The current provider remains deterministic and server-owned. Live provider/LLM
+integration, Human Validation, and a TechnicalDebt lifecycle are not implemented.
 The runtime investigates only and grants no lifecycle authority. See the
 [architecture overview](docs/architecture/overview.md).
 

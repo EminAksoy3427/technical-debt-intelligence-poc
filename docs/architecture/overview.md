@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 3 / Package 5 complete. **CURRENT** describes
+Baseline: 5 September 2026, Day 3 / Package 6 complete. **CURRENT** describes
 repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both
 views. Connector extension is documented in
@@ -76,8 +76,9 @@ explicit provider decision port and a deterministic scripted provider, enforces
 iteration/tool/time budgets, evaluates registry-owned metadata through the
 deterministic Policy boundary before execution, and checkpoints audit records.
 There is currently no live provider/LLM integration, Knowledge provider
-contract, TechnicalDebt lifecycle implementation, Agent Investigation
-frontend, or production WRITE tool.
+contract, TechnicalDebt lifecycle implementation, Human Validation, or
+production WRITE tool. Candidate Detail now includes an Agent Investigation
+section that calls the real AgentRun POST/GET API.
 
 ```text
 Candidate → AgentRun → provider decision → Tool Registry → Policy
@@ -91,7 +92,8 @@ provider and the existing READ/LOW-risk authorization. GET loads a persisted
 aggregate scoped by both Candidate and AgentRun identity and exposes only safe
 product/audit response models. Runtime checkpoint commits are not enclosed in
 an API-wide transaction, so terminal FAILED and ABSTAINED resources remain
-durable. There is still no Agent Investigation frontend.
+durable. Candidate Detail renders a persisted AgentRun through the Agent
+Investigation section. The current provider remains deterministic.
 
 Provider-visible context contains bounded tool descriptors and validated tool
 results, not sessions, settings, credentials, authorization authority, hidden
@@ -203,7 +205,7 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
-| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime and Candidate-scoped POST/GET AgentRun API. Agent Investigation frontend and production WRITE tools are not implemented |
+| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime, Candidate-scoped POST/GET AgentRun API, and Candidate Detail Agent Investigation UI. Live provider/LLM integration and production WRITE tools are not implemented |
 | Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
 | Policy Port | Implemented as a deterministic in-process Policy boundary. The runtime persists its decisions; persistence grants no authorization |
 | Investigation provider | Typed next-step port plus deterministic scripted provider implemented. No live model/provider adapter exists |
@@ -274,7 +276,11 @@ head remains `20260905_01`.
 Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`, and
 `/sources`; `frontend/app/pages/index.vue` redirects `/` to `/candidates`.
 Candidate pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
-Sources & Connectors uses `useConnectorApi` and real `GET /api/v1/connectors`.
+Candidate Detail includes an Agent Investigation section that uses
+`useAgentRunApi` with the real AgentRun POST/GET API. The current investigation
+provider is deterministic and server-owned; this is not live LLM inference.
+Human Validation is not implemented. Sources & Connectors uses
+`useConnectorApi` and real `GET /api/v1/connectors`.
 There is no runtime mock fallback. Blank `runtimeConfig.public.apiBaseUrl`
 raises a configuration error; pages show failure rather than silently
 substituting mock data. Configure `NUXT_PUBLIC_API_BASE_URL` as the API origin.

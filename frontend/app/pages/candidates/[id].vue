@@ -38,6 +38,7 @@ const presentation = computed(() => {
 const implementedCandidateDetailSections = [
   { id: 'candidate-overview', label: 'Overview' },
   { id: 'candidate-evidence-context', label: 'Evidence & Context' },
+  { id: 'candidate-agent-investigation', label: 'Agent Investigation' },
 ] as const
 </script>
 
@@ -154,6 +155,11 @@ const implementedCandidateDetailSections = [
         />
         <CandidateDependencyContext :dependencyContext="presentation.dependencyContext" />
       </section>
+
+      <CandidateAgentInvestigation
+        :candidateId="presentation.candidate.candidateId"
+        :evidence="presentation.evidence"
+      />
     </template>
   </section>
 </template>

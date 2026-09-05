@@ -14,8 +14,9 @@ the application resource prefix.
 Pydantic response models live in `backend/app/api/v1/candidate_schemas.py`,
 `backend/app/api/v1/agent_run_schemas.py`,
 `backend/app/api/v1/connector_schemas.py`, and `router.py`. Frontend wire types
-currently live in `frontend/app/types/candidateApi.ts` and
-`frontend/app/types/connectorApi.ts`; automatic client generation is not claimed.
+currently live in `frontend/app/types/candidateApi.ts`,
+`frontend/app/types/connectorApi.ts`, and `frontend/app/types/agentRunApi.ts`;
+automatic client generation is not claimed.
 
 ## Implemented routes
 

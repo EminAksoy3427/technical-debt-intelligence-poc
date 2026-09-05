@@ -24,6 +24,15 @@ const dependencyContext = readFrontendSource(
   'components/candidate/CandidateDependencyContext.vue',
 )
 const mapper = readFrontendSource('utils/mapCandidateDetail.ts')
+const agentInvestigation = readFrontendSource(
+  'components/candidate/CandidateAgentInvestigation.vue',
+)
+const structuredAssessment = readFrontendSource(
+  'components/candidate/CandidateStructuredAssessment.vue',
+)
+const policyTrace = readFrontendSource(
+  'components/candidate/CandidateAgentPolicyTrace.vue',
+)
 
 const misleadingLabels = [
   'TechnicalDebt owner',
@@ -48,6 +57,9 @@ describe('Candidate Detail D2 semantic copy', () => {
       headingAndLabelText(detailPage),
       headingAndLabelText(enterpriseContext),
       headingAndLabelText(dependencyContext),
+      headingAndLabelText(agentInvestigation),
+      headingAndLabelText(structuredAssessment),
+      headingAndLabelText(policyTrace),
     ].join('\n')
 
     for (const phrase of misleadingLabels) {
@@ -105,6 +117,17 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(dependencyContext).toContain('No reachable dependents are recorded.')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Impacted systems')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Blast radius')
+  })
+
+  it('keeps Agent Investigation copy distinct from validation, approval, and risk', () => {
+    expect(agentInvestigation).toContain('does not validate the')
+    expect(agentInvestigation).toContain('This is not Candidate validation.')
+    expect(agentInvestigation).toContain('This is not')
+    expect(agentInvestigation).toContain('Candidate rejection.')
+    expect(policyTrace).toContain('Policy ALLOW is not human approval.')
+    expect(headingAndLabelText(agentInvestigation)).not.toContain('Candidate risk')
+    expect(headingAndLabelText(structuredAssessment)).not.toContain('Risk score')
+    expect(headingAndLabelText(policyTrace)).not.toContain('Human Approved')
   })
 
   it('does not compute graph reachability in the frontend mapper', () => {

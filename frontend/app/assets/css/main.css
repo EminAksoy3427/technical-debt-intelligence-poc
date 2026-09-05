@@ -623,6 +623,33 @@ a {
   background: var(--color-surface-subtle);
 }
 
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-strong);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .count-value {
   display: inline-flex;
   align-items: center;
@@ -982,6 +1009,39 @@ a {
 .candidate-evidence-id {
   display: inline-block;
   margin-top: 0.5rem;
+}
+
+.candidate-investigation-actions {
+  margin-top: var(--space-3);
+}
+
+.candidate-investigation-note-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.candidate-investigation-note-list li {
+  display: grid;
+  justify-items: start;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.candidate-grounding-references {
+  margin-top: var(--space-2);
+}
+
+.investigation-trace-table {
+  min-width: 48rem;
+}
+
+.investigation-trace-table th,
+.investigation-trace-table td {
+  padding: 0.75rem var(--space-2);
+  vertical-align: top;
 }
 
 @media (min-width: 40rem) {
