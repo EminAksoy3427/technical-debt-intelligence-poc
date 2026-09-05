@@ -19,18 +19,14 @@ const itemsDeclaration = navigation.slice(
 
 const unimplementedWorkspaceLabels = [
   'Technical Debt',
-  'Sources & Connectors',
-  'Sources and Connectors',
   'Audit / Assurance',
   'Audit',
   'Assurance',
-  'Connectors',
 ]
 
 const unimplementedWorkspaceHrefs = [
   '/technical-debt',
   '/technical_debt',
-  '/sources',
   '/connectors',
   '/sources-and-connectors',
   '/audit',
@@ -42,17 +38,22 @@ describe('AppNavigation implemented workspace', () => {
     expect(layout).toContain('NavigationAppNavigation')
   })
 
-  it('exposes Candidates as the only implemented primary destination', () => {
+  it('exposes Candidates and Sources & Connectors as implemented destinations', () => {
     expect(navigation).toContain("label: 'Candidates'")
     expect(navigation).toContain("to: '/candidates'")
+    expect(navigation).toContain("label: 'Sources & Connectors'")
+    expect(navigation).toContain("to: '/sources'")
     expect(navigation).toContain('primaryNavigationItems')
     expect(navigation).toContain('NuxtLink :to="item.to"')
   })
 
-  it('does not render unimplemented workspaces or dead links', () => {
+  it('does not render unimplemented workspaces or a standalone Connectors workspace', () => {
     for (const label of unimplementedWorkspaceLabels) {
       expect(itemsDeclaration).not.toContain(label)
     }
+
+    expect(itemsDeclaration).not.toContain("label: 'Connectors'")
+    expect(itemsDeclaration).not.toContain("label: 'Sources and Connectors'")
 
     for (const href of unimplementedWorkspaceHrefs) {
       expect(navigation).not.toContain(`'${href}'`)

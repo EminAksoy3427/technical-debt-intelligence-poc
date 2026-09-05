@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 2 / Package 3B. **CURRENT** describes repository
+Baseline: 5 September 2026, Day 2 / Package 4. **CURRENT** describes repository
 code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both views.
 
@@ -18,8 +18,20 @@ Sources
   → Nuxt Candidate Pool / Detail
 ```
 
-This is a logical data flow, not an HTTP ingestion pipeline. Candidate GETs read
-persisted data; they do not scan sources or trigger correlation.
+Connector Registry visibility is a separate read path. It does not acquire
+source records:
+
+```text
+Connector Registry
+  → descriptor metadata only
+  → FastAPI GET /api/v1/connectors
+  → Nuxt Sources & Connectors
+```
+
+The first diagram is a logical data flow, not an HTTP ingestion pipeline.
+Candidate GETs read persisted data; they do not scan sources or trigger
+correlation. Connector GETs read registry descriptors; they do not execute
+connectors.
 
 | Responsibility | Current implementation |
 | --- | --- |
@@ -28,7 +40,7 @@ persisted data; they do not scan sources or trigger correlation.
 | Canonical output | `backend/app/signal_ingestion.py`: `NormalizedSignal` bundles a Signal with matching, nonempty Evidence |
 | Correlation | `backend/app/candidate_correlation.py`: canonical asset and problem-family grouping, deterministic identifiers and rationale |
 | Persistence / context | `backend/app/infrastructure/database`: SQLAlchemy models, persistence, enterprise/dependency context and Candidate read model |
-| Delivery | `backend/app/main.py`, `backend/app/api/v1`, and Nuxt `frontend/app/pages/candidates` |
+| Delivery | `backend/app/main.py`, `backend/app/api/v1`, Nuxt `frontend/app/pages/candidates`, and Nuxt `frontend/app/pages/sources` |
 
 The development population command in `backend/app/development_population.py`
 uses a fixed Semgrep + seeded-incident slice; it is not the entire ingestion
@@ -55,8 +67,10 @@ provider contract, TechnicalDebt lifecycle implementation, or agent runtime.
 The dependency-lifecycle vertical slice implements an explicit Connector,
 SourceObservation, functional normalizer boundary, and Connector Registry
 contracts. GitHub Issues is registered as a second explicit connector and
-stops at SourceObservation. The other acquisition paths remain
-legacy-compatible.
+stops at SourceObservation. The Connector Registry is visible through
+`GET /api/v1/connectors` and the Nuxt Sources & Connectors page as inventory
+metadata only: `status=registered` means composition registration, not source
+health. The other acquisition paths remain legacy-compatible.
 
 ### CURRENT connector acquisition seam
 
@@ -80,12 +94,21 @@ Registered reference connectors:
 1. `dependency-lifecycle` — transport: local JSON
 2. `github-issues` — transport: HTTPS, READ-only
 
+Dependency-lifecycle acquisition flow:
+
+```text
+local JSON
+  → Connector
+  → SourceObservation
+  → Normalizer
+  → NormalizedSignal
+```
+
 GitHub Issues flow:
 
 ```text
 GitHub REST API
-  → HTTP GET
-  → GitHubIssueRecord
+  → Connector
   → SourceObservation
 ```
 
@@ -205,18 +228,20 @@ NO schema change and NO migration revision.
 
 ## CURRENT frontend baseline
 
-Nuxt 4 / Vue / TypeScript provides `/candidates` and `/candidates/[id]`;
-`frontend/app/pages/index.vue` redirects `/` to `/candidates`.
-Both pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
+Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`, and
+`/sources`; `frontend/app/pages/index.vue` redirects `/` to `/candidates`.
+Candidate pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
+Sources & Connectors uses `useConnectorApi` and real `GET /api/v1/connectors`.
 There is no runtime mock fallback. Blank `runtimeConfig.public.apiBaseUrl`
-raises `CandidateApiConfigurationError`; pages show failure rather than silently
+raises a configuration error; pages show failure rather than silently
 substituting mock data. Configure `NUXT_PUBLIC_API_BASE_URL` as the API origin.
 Pool search and asset-type filtering are client-side.
 
-`frontend/app/components/navigation/AppNavigation.vue` contains **Candidates
-only**. Future information architecture may grow toward Candidates, Technical
-Debt, Sources & Connectors, and Audit / Assurance. This is **TARGET direction
-only**; no placeholder pages or navigation entries are added here.
+`frontend/app/components/navigation/AppNavigation.vue` contains **Candidates**
+and **Sources & Connectors**. The Sources page is registry inventory, not a
+health dashboard: Registered is not Healthy, Connected, or Online. Future
+information architecture may still grow toward Technical Debt and
+Audit / Assurance. Those workspaces are not implemented.
 
 ## Known non-blocking gaps — intentionally deferred
 

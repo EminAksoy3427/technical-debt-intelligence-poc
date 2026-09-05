@@ -492,6 +492,19 @@ a {
   box-shadow: inset 3px 0 0 var(--color-primary);
 }
 
+.connector-inventory-table {
+  min-width: 0;
+}
+
+.connector-inventory-table th,
+.connector-inventory-table td {
+  padding: 0.875rem var(--space-2);
+}
+
+.connector-inventory-table tbody th {
+  min-width: 12rem;
+}
+
 .candidate-table tbody th {
   min-width: 18rem;
   font-weight: 400;

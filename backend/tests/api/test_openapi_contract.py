@@ -8,6 +8,8 @@ APP_TITLE = "Technical Debt Intelligence & Governance PoC"
 HEALTH_PATH = "/api/v1/health"
 CANDIDATES_PATH = "/api/v1/candidates"
 CANDIDATE_DETAIL_PATH = "/api/v1/candidates/{candidate_id}"
+CONNECTORS_PATH = "/api/v1/connectors"
+CONNECTOR_DETAIL_PATH = "/api/v1/connectors/{connector_id}"
 
 
 def _openapi_schema() -> dict:
@@ -93,3 +95,69 @@ def test_openapi_candidate_read_contract_has_no_governance_fields() -> None:
     ]
     assert "dependency graph" in reachability_description
     assert "not guaranteed outage or causal impact" in reachability_description
+
+
+def test_openapi_connector_inventory_contract() -> None:
+    schema = _openapi_schema()
+    paths = schema["paths"]
+
+    assert CONNECTORS_PATH in paths
+    assert CONNECTOR_DETAIL_PATH not in paths
+    assert set(paths[CONNECTORS_PATH]) == {"get"}
+    assert (
+        paths[CONNECTORS_PATH]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/ConnectorListResponse"
+    )
+
+    list_schema = schema["components"]["schemas"]["ConnectorListResponse"]
+    assert set(list_schema["required"]) == {"items", "count"}
+    assert "items" in list_schema["properties"]
+    assert "count" in list_schema["properties"]
+
+    connector_schema = schema["components"]["schemas"]["ConnectorResponse"]
+    assert set(connector_schema["required"]) == {
+        "connector_id",
+        "display_name",
+        "version",
+        "source_system",
+        "transport",
+        "read_only",
+        "status",
+    }
+    assert set(connector_schema["properties"]) == {
+        "connector_id",
+        "display_name",
+        "version",
+        "source_system",
+        "transport",
+        "read_only",
+        "status",
+    }
+
+    status_schema = connector_schema["properties"]["status"]
+    assert status_schema.get("const") == "registered" or status_schema.get("enum") == [
+        "registered"
+    ]
+
+    serialized_connector_schemas = str(
+        {
+            name: component
+            for name, component in schema["components"]["schemas"].items()
+            if name.startswith("Connector")
+        }
+    ).lower()
+    for forbidden in (
+        "healthy",
+        "last_run",
+        "last_success",
+        "last_error",
+        "checkpoint",
+        "enabled",
+        "github_repository_owner",
+        "github_repository_name",
+        "github_request_timeout_seconds",
+        "acquire",
+    ):
+        assert forbidden not in serialized_connector_schemas

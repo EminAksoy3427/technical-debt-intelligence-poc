@@ -8,12 +8,16 @@ and a Candidate is not validated TechnicalDebt.
 
 The implementation is a **layered modular monolith** with deterministic
 multi-source ingestion and Candidate correlation, persisted enterprise context,
-and a Candidate Pool/Detail UI using real FastAPI read APIs.
+a Candidate Pool/Detail UI using real FastAPI read APIs, and a Sources &
+Connectors inventory of registered connector descriptors.
 
 ```text
 Sources → adapters → source-specific normalization → NormalizedSignal
         → deterministic Candidate correlation → persistence/read model
         → FastAPI → Nuxt Candidate Pool / Detail
+
+Connector Registry → FastAPI GET /api/v1/connectors
+                   → Nuxt Sources & Connectors
 ```
 
 Stack: Python 3.12 baseline (package requires >=3.12), FastAPI, synchronous
@@ -60,8 +64,10 @@ as the FastAPI origin and backend `CORS_ALLOWED_ORIGINS` for browser access;
 see [frontend/.env.example](frontend/.env.example). A missing API base URL
 produces an explicit error; there is no runtime mock fallback.
 
-Current routes: `GET /api/v1/health`, `GET /api/v1/candidates`, and
-`GET /api/v1/candidates/{candidate_id}`. Detailed executable contracts are served
+Current API routes: `GET /api/v1/health`, `GET /api/v1/candidates`,
+`GET /api/v1/candidates/{candidate_id}`, and `GET /api/v1/connectors`.
+Current frontend routes: `/candidates`, `/candidates/[id]`, and `/sources`.
+`/` redirects to `/candidates`. Detailed executable contracts are served
 at `/openapi.json` and browsable at `/docs` on the running FastAPI app.
 
 ## Deeper documentation
