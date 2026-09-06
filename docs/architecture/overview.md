@@ -1,12 +1,14 @@
 # Architecture baseline
 
-Baseline: 6 September 2026, Day 3 / Package 7 complete. **CURRENT** describes
+Baseline: 6 September 2026, Day 4 / Package 6 complete. **CURRENT** describes
 repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both
 views. Connector extension is documented in
 [adding a connector](../extensions/adding-a-connector.md). Database evolution is
 documented in
 [evolution and migrations](../database/evolution-and-migrations.md).
+Day 4 acceptance is recorded in
+[the Day 4 checkpoint](../checkpoints/day-4-human-validation-technical-debt.md).
 
 ## CURRENT: layered modular monolith
 
@@ -21,6 +23,26 @@ Sources
   → FastAPI
   → Nuxt Candidate Pool / Detail
 ```
+
+Human Validation is a separate command plane. It does not run behind
+AgentRuntime:
+
+```text
+READ / investigation plane
+  Nuxt Agent Investigation
+    → FastAPI AgentRun POST/GET
+    → AgentRuntime → Tool Registry → Policy → Candidate READ tools
+    → MSSQL audit persistence
+
+Human governance command plane
+  Nuxt Human Validation / Technical Debts
+    → FastAPI
+    → apply_human_validation
+    → domain / persistence
+    → MSSQL
+```
+
+This remains one **Extensible Modular Monolith**. It is not microservices.
 
 Connector Registry visibility is a separate read path. It does not acquire
 source records:
@@ -44,7 +66,8 @@ connectors.
 | Canonical output | `backend/app/signal_ingestion.py`: `NormalizedSignal` bundles a Signal with matching, nonempty Evidence |
 | Correlation | `backend/app/candidate_correlation.py`: canonical asset and problem-family grouping, deterministic identifiers and rationale |
 | Persistence / context | `backend/app/infrastructure/database`: SQLAlchemy models, persistence, enterprise/dependency context and Candidate read model |
-| Delivery | `backend/app/main.py`, `backend/app/api/v1`, Nuxt `frontend/app/pages/candidates`, and Nuxt `frontend/app/pages/sources` |
+| Human Validation | `backend/app/governance`: contracts, transitions, and `apply_human_validation`; persistence under `infrastructure/database` |
+| Delivery | `backend/app/main.py`, `backend/app/api/v1`, Nuxt `frontend/app/pages/candidates`, `frontend/app/pages/technical-debts`, and `frontend/app/pages/sources` |
 
 The development population command in `backend/app/development_population.py`
 uses a fixed Semgrep + seeded-incident slice; it is not the entire ingestion
@@ -57,7 +80,8 @@ depend on API/UI. Source-specific ingestion functions call concrete adapters
 and construct canonical objects.
 
 ```text
-API → infrastructure Candidate read model → persistence + domain/context
+API → infrastructure Candidate / TechnicalDebt read models → persistence + domain/context
+API Human Validation → apply_human_validation → persistence helpers (flush only)
 API response mapping → infrastructure read-model DTOs + domain
 Source ingestion → concrete source adapters + canonical domain objects
 ```
@@ -76,10 +100,11 @@ explicit provider decision port, deterministic providers, and an optional live
 OpenAI adapter. It enforces
 iteration/tool/time budgets, evaluates registry-owned metadata through the
 deterministic Policy boundary before execution, and checkpoints audit records.
-There is currently no Knowledge provider contract, TechnicalDebt lifecycle
-implementation, Human Validation, or production WRITE tool. Candidate Detail
-includes an Agent Investigation
-section that calls the real AgentRun POST/GET API.
+There is currently no Knowledge provider contract or production WRITE tool.
+Human Validation is a FastAPI command served by `apply_human_validation`, not
+an Agent Tool. TechnicalDebt exists only as a REGISTERED provenance record
+created by a valid Human `VALIDATE`. Candidate Detail includes separate Agent
+Investigation and Human Validation sections.
 
 ```text
 Candidate → AgentRun → provider decision → Tool Registry → Policy
@@ -94,8 +119,46 @@ existing READ/LOW-risk authorization. GET loads a persisted
 aggregate scoped by both Candidate and AgentRun identity and exposes only safe
 product/audit response models. Runtime checkpoint commits are not enclosed in
 an API-wide transaction, so terminal FAILED and ABSTAINED resources remain
-durable. Candidate Detail renders a persisted AgentRun through the Agent
+durable. Those AgentRun checkpoint semantics are not the Human Validation
+transaction. Candidate Detail renders a persisted AgentRun through the Agent
 Investigation section. The client cannot select or discover the provider/model.
+
+### CURRENT Human Validation transaction
+
+`apply_human_validation` requires a transaction-free Session. The service owns:
+
+```text
+BEGIN → Candidate row lock → read history → validate command → write → COMMIT / ROLLBACK
+```
+
+Persistence helpers flush but do not commit. Same-Candidate commands are
+serialized on MSSQL with `UPDLOCK` and `HOLDLOCK` on the Candidate row, plus
+database uniqueness on `(candidate_id, sequence_number)`,
+`source_candidate_id`, and `creation_human_decision_id`. Actor identity is
+server-owned from `HUMAN_GOVERNANCE_ENABLED` and
+`HUMAN_GOVERNANCE_ACTOR_REFERENCE`. That seam is not enterprise
+authentication.
+
+Initial Candidate governance is `PENDING` at revision 0. Legal Day 4
+transitions:
+
+```text
+PENDING
+  VALIDATE     → VALIDATED
+  REJECT       → REJECTED
+  REQUEST_INFO → INFORMATION_REQUESTED
+
+INFORMATION_REQUESTED
+  VALIDATE     → VALIDATED
+  REJECT       → REJECTED
+  REQUEST_INFO → INFORMATION_REQUESTED
+```
+
+`VALIDATED` and `REJECTED` are terminal for Day 4. `MERGE` is deferred.
+VALIDATE persists one HumanDecision and exactly one REGISTERED TechnicalDebt
+atomically. REJECT and REQUEST_INFO persist a HumanDecision and create no
+TechnicalDebt. Duplicate or stale commands conflict; there is no silent
+idempotency.
 
 Provider-visible context contains bounded registry-derived tool descriptors,
 typed input schemas, and validated tool results, not sessions, settings,
@@ -191,16 +254,17 @@ separate vertical slice introduces an application read boundary.
 
 ### Stable Core boundary
 
-Signal, Evidence, Candidate, canonical enterprise context, deterministic
-correlation, and governance semantics form the stable conceptual core. The
-future TechnicalDebt lifecycle also belongs here once implemented. This is a
+Signal, Evidence, Candidate, HumanDecision, REGISTERED TechnicalDebt, canonical
+enterprise context, deterministic correlation, and governance semantics form
+the stable conceptual core. Remaining TechnicalDebt lifecycle beyond
+REGISTERED still belongs here once implemented. This is a
 semantic boundary: correlation currently lives in `backend/app/candidate_correlation.py`,
 not in a newly introduced core package.
 
 The core owns source-independent meaning and invariants. Scanner payloads,
 provider SDKs, SQLAlchemy models, HTTP schemas, UI state, execution mechanics,
 and registry wiring belong outside it. Governance principles already constrain
-the project; executable approval/policy/lifecycle machinery is future work.
+the project; L3 ActionProposal and L4 approval/execution remain future work.
 
 ### Target extension surfaces
 
@@ -209,7 +273,7 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
-| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime, Candidate-scoped POST/GET AgentRun API, Candidate Detail Agent Investigation UI, and optional live OpenAI provider. Production WRITE tools are not implemented |
+| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime, Candidate-scoped POST/GET AgentRun API, Candidate Detail Agent Investigation UI, and optional live OpenAI provider. Production WRITE tools are not implemented. Human Validation is not an Agent Tool |
 | Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
 | Policy Port | Implemented as a deterministic in-process Policy boundary. The runtime persists its decisions; persistence grants no authorization |
 | Investigation provider | Typed next-step port, deterministic providers, and a stateless OpenAI Responses API adapter implemented. Provider selection is server-owned and deterministic remains the default |
@@ -251,10 +315,10 @@ by `backend/alembic.ini` and `backend/alembic/env.py`.
 Repository revision chain:
 
 ```text
-20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01
+20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01 → 20260906_01
 ```
 
-The single repository head is **20260905_01**. This inventory does not assert
+The single repository head is **20260906_01**. This inventory does not assert
 the applied revision of any live database.
 
 | Revision | Schema responsibility |
@@ -264,38 +328,56 @@ the applied revision of any live database.
 | `20260828_01` | `signals`, `evidence` |
 | `20260831_01` | `candidates`, `candidate_signals` |
 | `20260905_01` | `agent_runs`, `tool_executions`, `policy_decisions` |
+| `20260906_01` | `human_decisions`, `technical_debts` |
 
 Signal references its affected enterprise asset; Evidence references Signal.
 Candidate links to Signals through `candidate_signals` and references its
 canonical enterprise asset. Ownerships, relationships, and incidents enrich
 enterprise context; these facts are not validation or causal conclusions.
-**No TechnicalDebt table exists.** Agent audit persistence records bounded run
-state, grounded assessment JSON, safe tool traces, and policy facts. The bounded
-runtime writes those records but cannot validate a Candidate, create
-TechnicalDebt, or authorize action. Package 4 adds no schema change; Alembic
-head remains `20260905_01`.
+Candidates have no status or revision columns. HumanDecision history is
+append-only; governance state and revision are derived from that history.
+TechnicalDebt is a REGISTERED provenance row created only by a valid Human
+`VALIDATE`. Agent audit persistence records bounded run state, grounded
+assessment JSON, safe tool traces, and policy facts. The bounded runtime writes
+those records but cannot validate a Candidate, create TechnicalDebt, or
+authorize action.
 
 ## CURRENT frontend baseline
 
-Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`, and
-`/sources`; `frontend/app/pages/index.vue` redirects `/` to `/candidates`.
+Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`,
+`/technical-debts`, `/technical-debts/[id]`, and `/sources`;
+`frontend/app/pages/index.vue` redirects `/` to `/candidates`.
 Candidate pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
-Candidate Detail includes an Agent Investigation section that uses
-`useAgentRunApi` with the real AgentRun POST/GET API. The investigation provider
-is server-selected; the UI sends no provider, model, prompt, or authorization
-control and makes no claim about which provider ran. Human Validation is not
-implemented. Sources & Connectors uses
-`useConnectorApi` and real `GET /api/v1/connectors`.
+Candidate Detail sections are Overview, Evidence & Context, Agent
+Investigation, and Human Validation. Agent Investigation and Human Validation
+are visually and semantically separate.
+
+Agent Investigation uses `useAgentRunApi` with the real AgentRun POST/GET API.
+The investigation provider is server-selected; the UI sends no provider, model,
+prompt, or authorization control and makes no claim about which provider ran.
+
+Human Validation supports Validate, Reject, and Request information. The
+frontend sends the current persisted governance revision. A 409 does not retry
+the mutation; it refreshes the Candidate. If refresh after a successful POST
+fails, the UI reports that the decision was saved but state could not be
+refreshed and prevents duplicate submission. If conflict refresh fails, further
+governance actions are disabled because the local revision may be stale.
+
+TechnicalDebt portfolio and detail use `useTechnicalDebtApi`. They show
+REGISTERED provenance and the source Candidate / creation VALIDATE decision.
+They do not invent risk, effort, or owner.
+
+Sources & Connectors uses `useConnectorApi` and real `GET /api/v1/connectors`.
 There is no runtime mock fallback. Blank `runtimeConfig.public.apiBaseUrl`
 raises a configuration error; pages show failure rather than silently
 substituting mock data. Configure `NUXT_PUBLIC_API_BASE_URL` as the API origin.
 Pool search and asset-type filtering are client-side.
 
-`frontend/app/components/navigation/AppNavigation.vue` contains **Candidates**
-and **Sources & Connectors**. The Sources page is registry inventory, not a
-health dashboard: Registered is not Healthy, Connected, or Online. Future
-information architecture may still grow toward Technical Debt and
-Audit / Assurance. Those workspaces are not implemented.
+`frontend/app/components/navigation/AppNavigation.vue` contains **Candidates**,
+**Technical Debts**, and **Sources & Connectors**. The Sources page is registry
+inventory, not a health dashboard: Registered is not Healthy, Connected, or
+Online. Future information architecture may still grow toward
+Audit / Assurance. That workspace is not implemented.
 
 ## Known non-blocking gaps — intentionally deferred
 

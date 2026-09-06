@@ -38,6 +38,12 @@ a revision file, and a deployed database can drift. `alembic_version` records
 the applied revision; it is Alembic bookkeeping, not an application-domain
 table.
 
+Human Validation writes are owned by `apply_human_validation`. That service
+requires a transaction-free Session and performs BEGIN, Candidate-row lock,
+read, validate, write, and COMMIT or ROLLBACK. Persistence helpers
+`persist_human_decision` and `persist_technical_debt` flush; they do not
+commit. This is distinct from AgentRun audit checkpoint commits.
+
 ## Current schema inventory
 
 Application tables:
@@ -54,13 +60,15 @@ Application tables:
 - `agent_runs`
 - `tool_executions`
 - `policy_decisions`
+- `human_decisions`
+- `technical_debts`
 
 Also present at runtime after Alembic has run:
 
 - `alembic_version` — Alembic bookkeeping only
 
-There is **no** `technical_debt` table. There are **no** `connector`,
-`connector_health`, `connector_run`, or `checkpoint` tables.
+There are **no** `connector`, `connector_health`, `connector_run`, or
+`checkpoint` tables. Candidates have **no** status or revision columns.
 
 ## DAY 2 PACKAGES 2–4: NO SCHEMA CHANGE
 
@@ -96,6 +104,9 @@ erDiagram
     candidates ||--o{ agent_runs : investigations
     agent_runs ||--o{ tool_executions : executions
     tool_executions ||--o| policy_decisions : decision
+    candidates ||--o{ human_decisions : decisions
+    candidates ||--o| technical_debts : registered
+    human_decisions ||--o| technical_debts : creation
 
     enterprise_assets {
         int id PK
@@ -192,6 +203,23 @@ erDiagram
         string reason_code
         datetime decided_at
     }
+    human_decisions {
+        uuid human_decision_id PK
+        uuid candidate_id FK
+        int sequence_number
+        string decision_type
+        string rationale
+        string requested_information
+        string actor_reference
+        datetime created_at
+    }
+    technical_debts {
+        uuid technical_debt_id PK
+        uuid source_candidate_id FK, UK
+        uuid creation_human_decision_id FK, UK
+        string lifecycle_status
+        datetime created_at
+    }
 ```
 
 Notes that match the ORM:
@@ -212,16 +240,23 @@ Notes that match the ORM:
 - A ToolExecution has at most one PolicyDecision, keyed by the ToolExecution
   identifier. Policy facts record registry metadata and trusted authorization
   context without duplicating the AgentRun identifier.
+- HumanDecisions are append-only history for one Candidate. Sequence numbers
+  are unique per Candidate (`uq_human_decisions_candidate_sequence`).
+- TechnicalDebt references its source Candidate and the creating VALIDATE
+  HumanDecision. `source_candidate_id` and `creation_human_decision_id` are
+  each unique. Current `lifecycle_status` is only `REGISTERED`.
+- Candidates were not given status or revision columns. Governance state and
+  revision are derived from HumanDecision history.
 
 ## Migration history
 
 Exact current chain, single head, no branching:
 
 ```text
-20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01
+20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01 → 20260906_01
 ```
 
-Current head: **`20260905_01`**.
+Current head: **`20260906_01`**.
 
 | Revision | Purpose |
 | --- | --- |
@@ -230,6 +265,7 @@ Current head: **`20260905_01`**.
 | `20260828_01` | signals + evidence |
 | `20260831_01` | candidates + `candidate_signals` |
 | `20260905_01` | AgentRun, ToolExecution, and PolicyDecision audit persistence |
+| `20260906_01` | HumanDecision history and REGISTERED TechnicalDebt |
 
 This inventory describes repository revisions. It does not assert the applied
 revision of any live database until that database is inspected.
@@ -307,13 +343,14 @@ Package 3 migration compilation and configured-MSSQL integration run.
 
 | Claim | Status | Evidence |
 | --- | --- | --- |
-| Single head | **PROVEN** | Alembic script directory; `20260905_01` is the only head |
+| Single head | **PROVEN** | Alembic script directory; `20260906_01` is the only head; predecessor is `20260905_01` |
 | Clean DB → head | **PARTIALLY PROVEN** | live MSSQL upgrade-to-head exists; a guaranteed empty-database bootstrap is not a dedicated proven path |
 | Existing DB → head | **PARTIALLY PROVEN** | the configured MSSQL database successfully ran `upgrade head` and exposed the new schema; its starting revision was not separately captured |
 | Live downgrade | **NOT PROVEN** | downgrade SQL is compiled in-process (`as_sql`); no live MSSQL downgrade test was found |
 | Upgrade after downgrade | **NOT PROVEN** | no round-trip test exists |
-| ORM/schema correspondence | **PARTIALLY PROVEN** | ORM metadata, Alembic `env.py` imports, compiled MSSQL CREATE TABLE SQL, and live audit table/FK/index inspection are checked; complete live column/constraint parity is not proven |
-| Actual MSSQL migration | **PROVEN for Package 3 audit persistence** | integration tests upgraded configured MSSQL to head, inspected audit tables/FKs/index, and round-tripped AgentRun, Structured Assessment, ToolExecution, and PolicyDecision data |
+| ORM/schema correspondence | **PARTIALLY PROVEN** | ORM metadata, Alembic `env.py` imports, compiled MSSQL CREATE TABLE SQL, and live table/FK/uniqueness inspection are checked; complete live column/constraint parity is not proven |
+| Actual MSSQL migration | **PROVEN for Day 3 audit persistence and Day 4 governance tables** | earlier audit integration plus Day 4 Package 3 MSSQL tests upgraded configured MSSQL to `20260906_01` and inspected `human_decisions` / `technical_debts` FKs and uniqueness |
+| Same-Candidate MSSQL concurrency | **PROVEN for concurrent same-revision VALIDATE** | `test_mssql_serializes_same_revision_commands_and_creates_one_technical_debt` used `UPDLOCK`/`HOLDLOCK`; one winner, one stale conflict, one decision #1, exactly one TechnicalDebt. SQLite does not prove this |
 
 Do not improve these claims without adding or running new proof.
 
