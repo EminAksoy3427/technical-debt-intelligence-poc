@@ -12,7 +12,7 @@ const { getCandidate } = useCandidateApi()
 
 const candidateId = computed(() => String(route.params.id ?? ''))
 
-const { data, pending, error } = await useAsyncData(
+const { data, pending, error, refresh } = await useAsyncData(
   () => `candidate-detail:${candidateId.value}`,
   () => getCandidate(candidateId.value),
   { server: false },
@@ -39,6 +39,7 @@ const implementedCandidateDetailSections = [
   { id: 'candidate-overview', label: 'Overview' },
   { id: 'candidate-evidence-context', label: 'Evidence & Context' },
   { id: 'candidate-agent-investigation', label: 'Agent Investigation' },
+  { id: 'candidate-human-validation', label: 'Human Validation' },
 ] as const
 </script>
 
@@ -159,6 +160,11 @@ const implementedCandidateDetailSections = [
       <CandidateAgentInvestigation
         :candidateId="presentation.candidate.candidateId"
         :evidence="presentation.evidence"
+      />
+      <CandidateHumanValidation
+        :candidateId="presentation.candidate.candidateId"
+        :governance="presentation.governance"
+        :refreshCandidate="refresh"
       />
     </template>
   </section>

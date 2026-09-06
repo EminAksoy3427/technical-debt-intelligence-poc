@@ -33,6 +33,9 @@ const structuredAssessment = readFrontendSource(
 const policyTrace = readFrontendSource(
   'components/candidate/CandidateAgentPolicyTrace.vue',
 )
+const humanValidation = readFrontendSource(
+  'components/candidate/CandidateHumanValidation.vue',
+)
 
 const misleadingLabels = [
   'TechnicalDebt owner',
@@ -60,6 +63,7 @@ describe('Candidate Detail D2 semantic copy', () => {
       headingAndLabelText(agentInvestigation),
       headingAndLabelText(structuredAssessment),
       headingAndLabelText(policyTrace),
+      headingAndLabelText(humanValidation),
     ].join('\n')
 
     for (const phrase of misleadingLabels) {
@@ -117,6 +121,15 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(dependencyContext).toContain('No reachable dependents are recorded.')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Impacted systems')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Blast radius')
+  })
+
+  it('keeps Human Validation copy distinct from approval, risk, and ownership', () => {
+    expect(humanValidation).toContain('not L4 approval')
+    expect(humanValidation).toContain('Audit actor')
+    expect(humanValidation).toContain('View Technical Debt')
+    expect(headingAndLabelText(humanValidation)).not.toContain('Approve')
+    expect(headingAndLabelText(humanValidation)).not.toContain('Risk score')
+    expect(headingAndLabelText(humanValidation)).not.toContain('TechnicalDebt owner')
   })
 
   it('keeps Agent Investigation copy distinct from validation, approval, and risk', () => {

@@ -22,6 +22,9 @@ const dependencyContext = readFrontendSource(
 const agentInvestigation = readFrontendSource(
   'components/candidate/CandidateAgentInvestigation.vue',
 )
+const humanValidation = readFrontendSource(
+  'components/candidate/CandidateHumanValidation.vue',
+)
 
 const candidateDetailSources = [
   detailPage,
@@ -30,6 +33,7 @@ const candidateDetailSources = [
   enterpriseContext,
   dependencyContext,
   agentInvestigation,
+  humanValidation,
 ].join('\n')
 
 describe('Candidate Detail information architecture', () => {
@@ -80,22 +84,29 @@ describe('Candidate Detail information architecture', () => {
     expect(detailPage).toContain("id: 'candidate-overview'")
     expect(detailPage).toContain("id: 'candidate-evidence-context'")
     expect(detailPage).toContain("id: 'candidate-agent-investigation'")
+    expect(detailPage).toContain("id: 'candidate-human-validation'")
     expect(detailPage).toContain("label: 'Overview'")
     expect(detailPage).toContain("label: 'Evidence & Context'")
     expect(detailPage).toContain("label: 'Agent Investigation'")
+    expect(detailPage).toContain("label: 'Human Validation'")
     expect(detailPage).not.toContain('candidate-history')
   })
 
-  it('places Agent Investigation after Evidence & Context and omits History placeholders', () => {
+  it('places Agent Investigation after Evidence & Context and Human Validation after investigation', () => {
     expect(agentInvestigation).toContain('id="candidate-agent-investigation"')
     expect(detailPage).toContain('CandidateAgentInvestigation')
     expect(agentInvestigation).toContain('Agent Investigation')
+    expect(humanValidation).toContain('id="candidate-human-validation"')
+    expect(detailPage).toContain('CandidateHumanValidation')
+    expect(humanValidation).toContain('Human Validation')
 
     const evidenceStart = detailPage.indexOf('id="candidate-evidence-context"')
     const investigationStart = detailPage.indexOf('CandidateAgentInvestigation')
+    const validationStart = detailPage.indexOf('CandidateHumanValidation')
     expect(investigationStart).toBeGreaterThan(evidenceStart)
+    expect(validationStart).toBeGreaterThan(investigationStart)
 
-    expect(candidateDetailSources).not.toMatch(/\bHistory\b/)
+    expect(detailPage).not.toContain('candidate-history')
     expect(candidateDetailSources).not.toMatch(/coming soon/i)
     expect(candidateDetailSources).not.toMatch(/agent analysis/i)
     expect(candidateDetailSources).not.toMatch(/audit event/i)

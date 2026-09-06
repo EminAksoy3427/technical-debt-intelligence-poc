@@ -18,7 +18,6 @@ const itemsDeclaration = navigation.slice(
 )
 
 const unimplementedWorkspaceLabels = [
-  'Technical Debt',
   'Audit / Assurance',
   'Audit',
   'Assurance',
@@ -38,9 +37,11 @@ describe('AppNavigation implemented workspace', () => {
     expect(layout).toContain('NavigationAppNavigation')
   })
 
-  it('exposes Candidates and Sources & Connectors as implemented destinations', () => {
+  it('exposes Candidates, Technical Debts, and Sources & Connectors as implemented destinations', () => {
     expect(navigation).toContain("label: 'Candidates'")
     expect(navigation).toContain("to: '/candidates'")
+    expect(navigation).toContain("label: 'Technical Debts'")
+    expect(navigation).toContain("to: '/technical-debts'")
     expect(navigation).toContain("label: 'Sources & Connectors'")
     expect(navigation).toContain("to: '/sources'")
     expect(navigation).toContain('primaryNavigationItems')

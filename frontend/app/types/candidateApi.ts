@@ -5,6 +5,8 @@
  * presentation model and are not TechnicalDebt.
  */
 
+import type { CandidateGovernance } from './humanValidationApi'
+
 export type AssetType = 'APPLICATION' | 'SERVICE' | 'REPOSITORY'
 
 export type AssetCriticality = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
@@ -124,4 +126,5 @@ export interface CandidateDetailResponse {
   evidence: EvidenceResponse[]
   enterprise_context: CandidateEnterpriseContextResponse
   dependency_context: CandidateDependencyContextResponse
+  governance: CandidateGovernance
 }

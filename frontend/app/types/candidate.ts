@@ -6,6 +6,11 @@ import type {
   IncidentSeverity,
   OwnershipRole,
 } from './candidateApi'
+import type {
+  CandidateGovernanceState,
+  HumanDecisionType,
+  TechnicalDebtLifecycleStatus,
+} from './humanValidationApi'
 
 /**
  * Frontend presentation model for the Candidate Pool.
@@ -173,8 +178,44 @@ export interface CandidateDependencyContextPresentation {
 }
 
 /**
+ * Persisted Human Validation decision for Candidate Detail history.
+ * actorReference is opaque audit attribution, not verified employee identity.
+ */
+export interface CandidateHumanDecisionItem {
+  humanDecisionId: string
+  sequenceNumber: number
+  decision: HumanDecisionType
+  rationale: string | null
+  requestedInformation: string | null
+  actorReference: string
+  createdAt: string
+}
+
+/**
+ * TechnicalDebt created by a persisted VALIDATE decision.
+ * lifecycleStatus is REGISTERED and is not approval or remediation status.
+ */
+export interface CandidateGovernanceTechnicalDebtItem {
+  technicalDebtId: string
+  lifecycleStatus: TechnicalDebtLifecycleStatus
+  createdAt: string
+  sourceCandidateId: string
+}
+
+/**
+ * Persisted Candidate governance projection.
+ * This is Human Validation classification, not L4 approval.
+ */
+export interface CandidateGovernancePresentation {
+  state: CandidateGovernanceState
+  revision: number
+  decisions: CandidateHumanDecisionItem[]
+  technicalDebt: CandidateGovernanceTechnicalDebtItem | null
+}
+
+/**
  * Factual Candidate Detail presentation model.
- * This is not TechnicalDebt and does not represent validation, risk, effort,
+ * This is not TechnicalDebt and does not represent risk, effort,
  * priority, ownership decisions, causality, or guaranteed impact.
  */
 export interface CandidateDetailPresentation {
@@ -183,4 +224,18 @@ export interface CandidateDetailPresentation {
   evidence: CandidateEvidenceItem[]
   enterpriseContext: CandidateEnterpriseContextPresentation
   dependencyContext: CandidateDependencyContextPresentation
+  governance: CandidateGovernancePresentation
+}
+
+export const candidateGovernanceStateLabels: Record<CandidateGovernanceState, string> = {
+  PENDING: 'Pending',
+  INFORMATION_REQUESTED: 'Information requested',
+  VALIDATED: 'Validated',
+  REJECTED: 'Rejected',
+}
+
+export const humanDecisionTypeLabels: Record<HumanDecisionType, string> = {
+  VALIDATE: 'Validate',
+  REJECT: 'Reject',
+  REQUEST_INFO: 'Request information',
 }

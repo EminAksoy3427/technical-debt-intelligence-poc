@@ -133,6 +133,12 @@ const detailPayload: CandidateDetailResponse = {
       },
     ],
   },
+  governance: {
+    state: 'PENDING',
+    revision: 0,
+    decisions: [],
+    technical_debt: null,
+  },
 }
 
 function httpError(statusCode: number, detail: string) {

@@ -127,6 +127,12 @@ const detail: CandidateDetailResponse = {
       },
     ],
   },
+  governance: {
+    state: 'PENDING',
+    revision: 0,
+    decisions: [],
+    technical_debt: null,
+  },
 }
 
 describe('toCandidateDetailPresentation', () => {
@@ -213,7 +219,18 @@ describe('toCandidateDetailPresentation', () => {
     expect(presentation.evidence[1]).not.toHaveProperty('summary')
   })
 
-  it('does not invent governance, scoring, or mock Detail fields', () => {
+  it('maps pending governance without inventing decisions or TechnicalDebt', () => {
+    const presentation = toCandidateDetailPresentation(detail)
+
+    expect(presentation.governance).toEqual({
+      state: 'PENDING',
+      revision: 0,
+      decisions: [],
+      technicalDebt: null,
+    })
+  })
+
+  it('does not invent scoring or mock Detail fields', () => {
     const presentation = toCandidateDetailPresentation(detail)
     const serialized = JSON.stringify(presentation)
 
@@ -447,5 +464,123 @@ describe('toCandidateDetailPresentation enterprise and dependency context', () =
     expect(presentation.dependencyContext.directDependencies).toEqual([])
     expect(presentation.dependencyContext.directDependents).toEqual([])
     expect(presentation.dependencyContext.reachableDependents).toEqual([])
+  })
+})
+
+describe('toCandidateDetailPresentation governance', () => {
+  it('maps VALIDATE history, revision, and TechnicalDebt from the API', () => {
+    const validated: CandidateDetailResponse = {
+      ...detail,
+      governance: {
+        state: 'VALIDATED',
+        revision: 1,
+        decisions: [
+          {
+            human_decision_id: '40000000-0000-0000-0000-000000000001',
+            sequence_number: 1,
+            decision: 'VALIDATE',
+            rationale: 'The Candidate is a validated structural issue.',
+            requested_information: null,
+            actor_reference: 'poc:local-reviewer',
+            created_at: '2026-09-06T18:00:00+00:00',
+          },
+        ],
+        technical_debt: {
+          technical_debt_id: '50000000-0000-0000-0000-000000000001',
+          lifecycle_status: 'REGISTERED',
+          created_at: '2026-09-06T18:00:00+00:00',
+          source_candidate_id: CANDIDATE_ID,
+        },
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(validated)
+
+    expect(presentation.governance.state).toBe('VALIDATED')
+    expect(presentation.governance.revision).toBe(1)
+    expect(presentation.governance.decisions).toEqual([
+      {
+        humanDecisionId: '40000000-0000-0000-0000-000000000001',
+        sequenceNumber: 1,
+        decision: 'VALIDATE',
+        rationale: 'The Candidate is a validated structural issue.',
+        requestedInformation: null,
+        actorReference: 'poc:local-reviewer',
+        createdAt: '2026-09-06T18:00:00+00:00',
+      },
+    ])
+    expect(presentation.governance.technicalDebt).toEqual({
+      technicalDebtId: '50000000-0000-0000-0000-000000000001',
+      lifecycleStatus: 'REGISTERED',
+      createdAt: '2026-09-06T18:00:00+00:00',
+      sourceCandidateId: CANDIDATE_ID,
+    })
+  })
+
+  it('maps REJECT without TechnicalDebt', () => {
+    const rejected: CandidateDetailResponse = {
+      ...detail,
+      governance: {
+        state: 'REJECTED',
+        revision: 1,
+        decisions: [
+          {
+            human_decision_id: '40000000-0000-0000-0000-000000000002',
+            sequence_number: 1,
+            decision: 'REJECT',
+            rationale: 'The findings do not form a structural issue.',
+            requested_information: null,
+            actor_reference: 'poc:local-reviewer',
+            created_at: '2026-09-06T18:01:00+00:00',
+          },
+        ],
+        technical_debt: null,
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(rejected)
+
+    expect(presentation.governance.state).toBe('REJECTED')
+    expect(presentation.governance.technicalDebt).toBeNull()
+    expect(presentation.governance.decisions[0]?.decision).toBe('REJECT')
+  })
+
+  it('orders decision history by sequence number', () => {
+    const requested: CandidateDetailResponse = {
+      ...detail,
+      governance: {
+        state: 'INFORMATION_REQUESTED',
+        revision: 2,
+        decisions: [
+          {
+            human_decision_id: '40000000-0000-0000-0000-000000000004',
+            sequence_number: 2,
+            decision: 'REQUEST_INFO',
+            rationale: null,
+            requested_information: 'Need the blast radius as well.',
+            actor_reference: 'poc:local-reviewer',
+            created_at: '2026-09-06T18:03:00+00:00',
+          },
+          {
+            human_decision_id: '40000000-0000-0000-0000-000000000003',
+            sequence_number: 1,
+            decision: 'REQUEST_INFO',
+            rationale: null,
+            requested_information: 'Need the owning team.',
+            actor_reference: 'poc:local-reviewer',
+            created_at: '2026-09-06T18:02:00+00:00',
+          },
+        ],
+        technical_debt: null,
+      },
+    }
+
+    const presentation = toCandidateDetailPresentation(requested)
+
+    expect(presentation.governance.decisions.map((item) => item.sequenceNumber)).toEqual([1, 2])
+    expect(presentation.governance.decisions.map((item) => item.requestedInformation)).toEqual([
+      'Need the owning team.',
+      'Need the blast radius as well.',
+    ])
   })
 })

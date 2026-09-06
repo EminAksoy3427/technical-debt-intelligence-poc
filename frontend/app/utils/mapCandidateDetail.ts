@@ -6,6 +6,9 @@ import type {
   CandidateDirectRelationshipItem,
   CandidateEnterpriseContextPresentation,
   CandidateEnterpriseOwnershipItem,
+  CandidateGovernancePresentation,
+  CandidateGovernanceTechnicalDebtItem,
+  CandidateHumanDecisionItem,
 } from '../types/candidate'
 import type {
   AssetRelationshipResponse,
@@ -18,6 +21,11 @@ import type {
   IncidentResponse,
   SignalResponse,
 } from '../types/candidateApi'
+import type {
+  CandidateGovernance,
+  CandidateGovernanceTechnicalDebt,
+  HumanDecision,
+} from '../types/humanValidationApi'
 
 export function toCandidateDetailPresentation(
   detail: CandidateDetailResponse,
@@ -35,6 +43,44 @@ export function toCandidateDetailPresentation(
     evidence: detail.evidence.map(toCandidateEvidenceItem),
     enterpriseContext: toEnterpriseContextPresentation(detail.enterprise_context),
     dependencyContext: toDependencyContextPresentation(detail.dependency_context),
+    governance: toGovernancePresentation(detail.governance),
+  }
+}
+
+function toGovernancePresentation(governance: CandidateGovernance): CandidateGovernancePresentation {
+  return {
+    state: governance.state,
+    revision: governance.revision,
+    decisions: [...governance.decisions]
+      .sort((left, right) => left.sequence_number - right.sequence_number)
+      .map(toHumanDecisionItem),
+    technicalDebt:
+      governance.technical_debt == null
+        ? null
+        : toGovernanceTechnicalDebtItem(governance.technical_debt),
+  }
+}
+
+function toHumanDecisionItem(decision: HumanDecision): CandidateHumanDecisionItem {
+  return {
+    humanDecisionId: decision.human_decision_id,
+    sequenceNumber: decision.sequence_number,
+    decision: decision.decision,
+    rationale: decision.rationale,
+    requestedInformation: decision.requested_information,
+    actorReference: decision.actor_reference,
+    createdAt: decision.created_at,
+  }
+}
+
+function toGovernanceTechnicalDebtItem(
+  technicalDebt: CandidateGovernanceTechnicalDebt,
+): CandidateGovernanceTechnicalDebtItem {
+  return {
+    technicalDebtId: technicalDebt.technical_debt_id,
+    lifecycleStatus: technicalDebt.lifecycle_status,
+    createdAt: technicalDebt.created_at,
+    sourceCandidateId: technicalDebt.source_candidate_id,
   }
 }
 

@@ -60,6 +60,8 @@ describe('Candidate Detail route source', () => {
     expect(detailPage).toContain('id="candidate-overview"')
     expect(detailPage).toContain('id="candidate-evidence-context"')
     expect(detailPage).toContain('CandidateAgentInvestigation')
+    expect(detailPage).toContain('CandidateHumanValidation')
+    expect(detailPage).toContain('refresh')
   })
 
   it('keeps Pool UUID navigation compatible with the Detail route', () => {
