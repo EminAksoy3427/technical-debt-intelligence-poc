@@ -14,6 +14,20 @@ CANDIDATE_AGENT_RUN_PATH = (
 )
 CONNECTORS_PATH = "/api/v1/connectors"
 CONNECTOR_DETAIL_PATH = "/api/v1/connectors/{connector_id}"
+HUMAN_DECISIONS_PATH = "/api/v1/candidates/{candidate_id}/human-decisions"
+TECHNICAL_DEBTS_PATH = "/api/v1/technical-debts"
+TECHNICAL_DEBT_DETAIL_PATH = "/api/v1/technical-debts/{technical_debt_id}"
+HUMAN_VALIDATION_AUTHORITY_FIELDS = (
+    "actor_reference",
+    "role",
+    "approval",
+    "authorization",
+    "is_authorized",
+    "provider",
+    "model",
+    "tool",
+    "technical_debt_id",
+)
 
 
 def _openapi_schema() -> dict:
@@ -72,6 +86,9 @@ def test_openapi_candidate_read_contract_has_no_governance_fields() -> None:
         ]["schema"]["$ref"]
         == "#/components/schemas/CandidateDetailResponse"
     )
+
+    detail_schema = schema["components"]["schemas"]["CandidateDetailResponse"]
+    assert "governance" in detail_schema["properties"]
 
     candidate_schemas = {
         name: component
@@ -233,3 +250,68 @@ def test_openapi_connector_inventory_contract() -> None:
         "acquire",
     ):
         assert forbidden not in serialized_connector_schemas
+
+
+def test_openapi_human_validation_request_exposes_only_untrusted_intent() -> None:
+    schema = _openapi_schema()
+    paths = schema["paths"]
+
+    assert set(paths[HUMAN_DECISIONS_PATH]) == {"post"}
+    post_operation = paths[HUMAN_DECISIONS_PATH]["post"]
+    request_schema = post_operation["requestBody"]["content"]["application/json"][
+        "schema"
+    ]
+    if "$ref" in request_schema:
+        request_schema = schema["components"]["schemas"][
+            request_schema["$ref"].rsplit("/", 1)[-1]
+        ]
+
+    assert set(request_schema["properties"]) == {
+        "decision",
+        "rationale",
+        "requested_information",
+        "expected_governance_revision",
+    }
+    assert request_schema.get("additionalProperties") is False
+    for forbidden in HUMAN_VALIDATION_AUTHORITY_FIELDS:
+        assert forbidden not in request_schema["properties"]
+
+    assert post_operation["responses"]["201"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/HumanValidationResponse"
+
+
+def test_openapi_technical_debt_read_contract() -> None:
+    schema = _openapi_schema()
+    paths = schema["paths"]
+
+    assert set(paths[TECHNICAL_DEBTS_PATH]) == {"get"}
+    assert set(paths[TECHNICAL_DEBT_DETAIL_PATH]) == {"get"}
+    assert (
+        paths[TECHNICAL_DEBTS_PATH]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/TechnicalDebtListResponse"
+    )
+    assert (
+        paths[TECHNICAL_DEBT_DETAIL_PATH]["get"]["responses"]["200"]["content"][
+            "application/json"
+        ]["schema"]["$ref"]
+        == "#/components/schemas/TechnicalDebtDetailResponse"
+    )
+
+    debt_schemas = {
+        name: component
+        for name, component in schema["components"]["schemas"].items()
+        if "TechnicalDebt" in name
+    }
+    serialized_schemas = str(debt_schemas).lower()
+    for forbidden in (
+        "risk",
+        "effort",
+        "priority",
+        "validated_owner",
+        "owner",
+        "target_date",
+    ):
+        assert forbidden not in serialized_schemas

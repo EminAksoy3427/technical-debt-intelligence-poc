@@ -15,6 +15,7 @@ from app.infrastructure.database.candidate_read_model import (
     CandidateReadIntegrityError,
     list_candidate_summaries,
     load_candidate_detail,
+    load_candidate_governance,
 )
 
 router = APIRouter(prefix="/candidates", tags=["candidates"])
@@ -51,4 +52,11 @@ def get_candidate(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Candidate not found",
         )
-    return candidate_detail_response(detail)
+    try:
+        governance = load_candidate_governance(session, candidate_id)
+    except CandidateReadIntegrityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Persisted Candidate data failed integrity validation",
+        ) from error
+    return candidate_detail_response(detail, governance)

@@ -32,6 +32,17 @@ def load_technical_debt(
     return _technical_debt_contract(persisted)
 
 
+def list_technical_debts(session: Session) -> tuple[TechnicalDebt, ...]:
+    """Load all TechnicalDebt records in deterministic created-at order."""
+    persisted = session.scalars(select(TechnicalDebtModel))
+    return tuple(
+        sorted(
+            (_technical_debt_contract(item) for item in persisted),
+            key=lambda item: (item.created_at, item.technical_debt_id.hex),
+        )
+    )
+
+
 def load_technical_debt_for_candidate(
     session: Session,
     candidate_id: UUID,

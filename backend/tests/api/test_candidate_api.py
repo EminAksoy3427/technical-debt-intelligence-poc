@@ -17,7 +17,10 @@ from app.api.dependencies import get_database_session
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import AssetType
+from app.domain.human_decisions import HumanDecisionType
 from app.domain.signals import Evidence, Signal
+from app.governance.contracts import HumanActorContext, HumanValidationCommand
+from app.governance.human_validation import apply_human_validation
 from app.infrastructure.database.candidate_models import (
     CandidateModel,
     CandidateSignalModel,
@@ -476,3 +479,158 @@ def test_get_read_path_does_not_flush_commit_or_mutate(
             verification_session.scalar(select(func.count()).select_from(EvidenceModel))
             == 1
         )
+
+
+def _apply_decision(
+    engine: Engine,
+    candidate_id: UUID,
+    *,
+    decision: HumanDecisionType,
+    revision: int,
+    rationale: str | None = None,
+    requested_information: str | None = None,
+) -> None:
+    with Session(engine) as session:
+        apply_human_validation(
+            session,
+            HumanValidationCommand(
+                candidate_id=candidate_id,
+                decision=decision,
+                expected_governance_revision=revision,
+                rationale=rationale,
+                requested_information=requested_information,
+            ),
+            HumanActorContext(actor_reference="poc:local-reviewer"),
+        )
+
+
+def test_new_candidate_detail_projects_pending_governance(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _candidate_with_one_signal(session, suffix=41)
+        session.commit()
+
+    response = client.get(f"{API_PATH}/{candidate.candidate_id}")
+
+    assert response.status_code == 200
+    assert response.json()["governance"] == {
+        "state": "PENDING",
+        "revision": 0,
+        "decisions": [],
+        "technical_debt": None,
+    }
+
+
+def test_request_info_candidate_detail_projects_persisted_governance(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _candidate_with_one_signal(session, suffix=42)
+        session.commit()
+    _apply_decision(
+        database_engine,
+        candidate.candidate_id,
+        decision=HumanDecisionType.REQUEST_INFO,
+        revision=0,
+        requested_information="Who owns the catalog service?",
+    )
+
+    response = client.get(f"{API_PATH}/{candidate.candidate_id}")
+
+    assert response.status_code == 200
+    governance = response.json()["governance"]
+    assert governance["state"] == "INFORMATION_REQUESTED"
+    assert governance["revision"] == 1
+    assert len(governance["decisions"]) == 1
+    assert governance["decisions"][0]["decision"] == "REQUEST_INFO"
+    assert governance["decisions"][0]["sequence_number"] == 1
+    assert governance["technical_debt"] is None
+
+
+def test_validate_candidate_detail_projects_technical_debt(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _candidate_with_one_signal(session, suffix=43)
+        session.commit()
+    _apply_decision(
+        database_engine,
+        candidate.candidate_id,
+        decision=HumanDecisionType.VALIDATE,
+        revision=0,
+        rationale="The Candidate is a validated structural issue.",
+    )
+
+    response = client.get(f"{API_PATH}/{candidate.candidate_id}")
+
+    assert response.status_code == 200
+    governance = response.json()["governance"]
+    assert governance["state"] == "VALIDATED"
+    assert governance["revision"] == 1
+    assert governance["technical_debt"]["lifecycle_status"] == "REGISTERED"
+    assert governance["technical_debt"]["source_candidate_id"] == str(
+        candidate.candidate_id
+    )
+
+
+def test_reject_candidate_detail_projects_no_technical_debt(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _candidate_with_one_signal(session, suffix=44)
+        session.commit()
+    _apply_decision(
+        database_engine,
+        candidate.candidate_id,
+        decision=HumanDecisionType.REJECT,
+        revision=0,
+        rationale="The findings do not form a structural issue.",
+    )
+
+    response = client.get(f"{API_PATH}/{candidate.candidate_id}")
+
+    assert response.status_code == 200
+    governance = response.json()["governance"]
+    assert governance["state"] == "REJECTED"
+    assert governance["revision"] == 1
+    assert governance["technical_debt"] is None
+
+
+def test_candidate_detail_decisions_are_ordered_by_sequence(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _candidate_with_one_signal(session, suffix=45)
+        session.commit()
+    _apply_decision(
+        database_engine,
+        candidate.candidate_id,
+        decision=HumanDecisionType.REQUEST_INFO,
+        revision=0,
+        requested_information="Need the owning team.",
+    )
+    _apply_decision(
+        database_engine,
+        candidate.candidate_id,
+        decision=HumanDecisionType.REQUEST_INFO,
+        revision=1,
+        requested_information="Need the blast radius as well.",
+    )
+
+    response = client.get(f"{API_PATH}/{candidate.candidate_id}")
+
+    assert response.status_code == 200
+    decisions = response.json()["governance"]["decisions"]
+    assert [item["sequence_number"] for item in decisions] == [1, 2]
+    assert [item["decision"] for item in decisions] == [
+        "REQUEST_INFO",
+        "REQUEST_INFO",
+    ]
+    assert response.json()["governance"]["state"] == "INFORMATION_REQUESTED"
+    assert response.json()["governance"]["revision"] == 2

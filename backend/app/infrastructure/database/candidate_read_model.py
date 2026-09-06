@@ -10,7 +10,14 @@ from app.domain.candidate_dependency_context import CandidateDependencyContext
 from app.domain.candidate_enterprise_context import CandidateEnterpriseContext
 from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import AssetType
+from app.domain.human_decisions import HumanDecision, HumanDecisionType
 from app.domain.signals import Evidence, Signal
+from app.domain.technical_debts import TechnicalDebt
+from app.governance.contracts import (
+    CandidateGovernanceState,
+    InvalidGovernanceHistory,
+)
+from app.governance.transitions import derive_candidate_governance
 from app.infrastructure.database.candidate_dependency_context import (
     CandidateDependencyContextIntegrityError,
     load_candidate_dependency_context,
@@ -21,7 +28,13 @@ from app.infrastructure.database.candidate_enterprise_context import (
 )
 from app.infrastructure.database.candidate_models import CandidateModel
 from app.infrastructure.database.candidate_persistence import load_candidate
+from app.infrastructure.database.human_decision_persistence import (
+    load_human_decision_history,
+)
 from app.infrastructure.database.signal_models import SignalModel
+from app.infrastructure.database.technical_debt_persistence import (
+    load_technical_debt_for_candidate,
+)
 
 
 class CandidateReadIntegrityError(ValueError):
@@ -41,6 +54,14 @@ class CandidateDetail:
     evidence: tuple[Evidence, ...]
     enterprise_context: CandidateEnterpriseContext
     dependency_context: CandidateDependencyContext
+
+
+@dataclass(frozen=True)
+class CandidateGovernanceProjection:
+    state: CandidateGovernanceState
+    revision: int
+    decisions: tuple[HumanDecision, ...]
+    technical_debt: TechnicalDebt | None
 
 
 def list_candidate_summaries(session: Session) -> tuple[CandidateSummary, ...]:
@@ -102,6 +123,51 @@ def load_candidate_detail(
         evidence=evidence,
         enterprise_context=enterprise_context,
         dependency_context=dependency_context,
+    )
+
+
+def load_candidate_governance(
+    session: Session,
+    candidate_id: UUID,
+) -> CandidateGovernanceProjection:
+    """Derive Candidate governance from persisted HumanDecision history."""
+    try:
+        history = load_human_decision_history(session, candidate_id)
+        snapshot = derive_candidate_governance(history)
+        technical_debt = load_technical_debt_for_candidate(session, candidate_id)
+    except (InvalidGovernanceHistory, ValueError) as error:
+        raise CandidateReadIntegrityError(
+            "Persisted Candidate governance facts are inconsistent"
+        ) from error
+
+    if (
+        snapshot.state is CandidateGovernanceState.VALIDATED
+        and technical_debt is None
+    ):
+        raise CandidateReadIntegrityError(
+            "Persisted Candidate governance facts are inconsistent"
+        )
+    if (
+        technical_debt is not None
+        and snapshot.state is not CandidateGovernanceState.VALIDATED
+    ):
+        raise CandidateReadIntegrityError(
+            "Persisted Candidate governance facts are inconsistent"
+        )
+    if technical_debt is not None and not any(
+        decision.human_decision_id == technical_debt.creation_human_decision_id
+        and decision.decision_type is HumanDecisionType.VALIDATE
+        for decision in history
+    ):
+        raise CandidateReadIntegrityError(
+            "Persisted Candidate governance facts are inconsistent"
+        )
+
+    return CandidateGovernanceProjection(
+        state=snapshot.state,
+        revision=snapshot.revision,
+        decisions=history,
+        technical_debt=technical_debt,
     )
 
 

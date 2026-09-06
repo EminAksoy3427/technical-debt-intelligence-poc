@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import pytest
 from alembic.config import Config
@@ -14,14 +14,25 @@ from sqlalchemy.orm import Session
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import AssetType
+from app.domain.human_decisions import HumanDecisionType
 from app.domain.signals import Evidence, Signal
+from app.governance.contracts import (
+    CandidateGovernanceState,
+    HumanActorContext,
+    HumanValidationCommand,
+)
+from app.governance.human_validation import apply_human_validation
 from app.infrastructure.database.candidate_persistence import persist_candidate
 from app.infrastructure.database.candidate_read_model import (
+    CandidateReadIntegrityError,
     list_candidate_summaries,
     load_candidate_detail,
+    load_candidate_governance,
 )
 from app.infrastructure.database.enterprise_estate_models import EnterpriseAssetModel
+from app.infrastructure.database.human_decision_models import HumanDecisionModel
 from app.infrastructure.database.signal_persistence import persist_normalized_signal
+from app.infrastructure.database.technical_debt_models import TechnicalDebtModel
 from app.signal_ingestion import NormalizedSignal
 
 
@@ -146,6 +157,110 @@ def test_read_model_assembles_exact_deterministic_facts_without_writes(
     assert detail.dependency_context.candidate_asset == candidate.canonical_asset
     assert flushes == 0
     assert commits == 0
+
+
+def test_governance_read_model_is_pending_without_decisions(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _persist_candidate(session)
+        session.commit()
+
+    with Session(database_engine) as session:
+        governance = load_candidate_governance(session, candidate.candidate_id)
+
+    assert governance.state is CandidateGovernanceState.PENDING
+    assert governance.revision == 0
+    assert governance.decisions == ()
+    assert governance.technical_debt is None
+
+
+def test_governance_read_model_projects_validate_and_debt(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _persist_candidate(session)
+        session.commit()
+
+    with Session(database_engine) as session:
+        apply_human_validation(
+            session,
+            HumanValidationCommand(
+                candidate_id=candidate.candidate_id,
+                decision=HumanDecisionType.VALIDATE,
+                expected_governance_revision=0,
+                rationale="The Candidate is a validated structural issue.",
+            ),
+            HumanActorContext(actor_reference="poc:local-reviewer"),
+        )
+
+    with Session(database_engine) as session:
+        governance = load_candidate_governance(session, candidate.candidate_id)
+
+    assert governance.state is CandidateGovernanceState.VALIDATED
+    assert governance.revision == 1
+    assert len(governance.decisions) == 1
+    assert governance.technical_debt is not None
+    assert (
+        governance.technical_debt.source_candidate_id == candidate.candidate_id
+    )
+    assert any(
+        decision.human_decision_id
+        == governance.technical_debt.creation_human_decision_id
+        and decision.decision_type is HumanDecisionType.VALIDATE
+        for decision in governance.decisions
+    )
+
+
+def test_governance_read_model_rejects_debt_pointing_at_non_validate_decision(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _persist_candidate(session)
+        session.commit()
+
+    request_info_id = uuid4()
+    validate_id = uuid4()
+    created_at = datetime(2026, 9, 6, 21, 0, tzinfo=UTC)
+    with Session(database_engine) as session:
+        session.add(
+            HumanDecisionModel(
+                human_decision_id=request_info_id,
+                candidate_id=candidate.candidate_id,
+                sequence_number=1,
+                decision_type=HumanDecisionType.REQUEST_INFO.value,
+                rationale=None,
+                requested_information="Who owns this service?",
+                actor_reference="poc:local-reviewer",
+                created_at=created_at,
+            )
+        )
+        session.add(
+            HumanDecisionModel(
+                human_decision_id=validate_id,
+                candidate_id=candidate.candidate_id,
+                sequence_number=2,
+                decision_type=HumanDecisionType.VALIDATE.value,
+                rationale="The Candidate is a validated structural issue.",
+                requested_information=None,
+                actor_reference="poc:local-reviewer",
+                created_at=created_at,
+            )
+        )
+        session.add(
+            TechnicalDebtModel(
+                technical_debt_id=uuid4(),
+                source_candidate_id=candidate.candidate_id,
+                creation_human_decision_id=request_info_id,
+                lifecycle_status="REGISTERED",
+                created_at=created_at,
+            )
+        )
+        session.commit()
+
+    with Session(database_engine) as session:
+        with pytest.raises(CandidateReadIntegrityError, match="inconsistent"):
+            load_candidate_governance(session, candidate.candidate_id)
 
 
 def test_read_model_returns_none_for_unknown_candidate(

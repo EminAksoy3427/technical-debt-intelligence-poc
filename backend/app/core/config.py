@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     openai_request_timeout_seconds: int = Field(default=30, gt=0)
     cors_allowed_origins: list[str] = Field(default_factory=list)
     allow_development_data_population: bool = False
+    human_governance_enabled: bool = False
+    human_governance_actor_reference: str | None = None
 
     @field_validator("cors_allowed_origins")
     @classmethod
@@ -54,6 +56,28 @@ class Settings(BaseSettings):
             return None
         normalized = model.strip()
         return normalized or None
+
+    @field_validator("human_governance_actor_reference")
+    @classmethod
+    def normalize_human_governance_actor_reference(
+        cls,
+        actor_reference: str | None,
+    ) -> str | None:
+        if actor_reference is None:
+            return None
+        normalized = actor_reference.strip()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def require_human_governance_actor_reference(self) -> "Settings":
+        if not self.human_governance_enabled:
+            return self
+        if self.human_governance_actor_reference is None:
+            raise ValueError(
+                "HUMAN_GOVERNANCE_ACTOR_REFERENCE is required when "
+                "HUMAN_GOVERNANCE_ENABLED=true"
+            )
+        return self
 
     @model_validator(mode="after")
     def require_live_provider_configuration(self) -> "Settings":

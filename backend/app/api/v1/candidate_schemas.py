@@ -15,9 +15,13 @@ from app.domain.enterprise_estate import (
     IncidentSeverity,
     OwnershipRole,
 )
+from app.domain.human_decisions import HumanDecision, HumanDecisionType
 from app.domain.signals import Evidence, Signal
+from app.domain.technical_debts import TechnicalDebt, TechnicalDebtLifecycleStatus
+from app.governance.contracts import CandidateGovernanceState
 from app.infrastructure.database.candidate_read_model import (
     CandidateDetail,
+    CandidateGovernanceProjection,
     CandidateSummary,
 )
 
@@ -130,12 +134,37 @@ class CandidateListResponse(BaseModel):
     count: int
 
 
+class CandidateGovernanceDecisionResponse(BaseModel):
+    human_decision_id: UUID
+    sequence_number: int
+    decision: HumanDecisionType
+    rationale: str | None
+    requested_information: str | None
+    actor_reference: str
+    created_at: datetime
+
+
+class CandidateGovernanceTechnicalDebtResponse(BaseModel):
+    technical_debt_id: UUID
+    lifecycle_status: TechnicalDebtLifecycleStatus
+    created_at: datetime
+    source_candidate_id: UUID
+
+
+class CandidateGovernanceResponse(BaseModel):
+    state: CandidateGovernanceState
+    revision: int
+    decisions: list[CandidateGovernanceDecisionResponse]
+    technical_debt: CandidateGovernanceTechnicalDebtResponse | None
+
+
 class CandidateDetailResponse(BaseModel):
     candidate: CandidateResponse
     signals: list[SignalResponse]
     evidence: list[EvidenceResponse]
     enterprise_context: CandidateEnterpriseContextResponse
     dependency_context: CandidateDependencyContextResponse
+    governance: CandidateGovernanceResponse
 
 
 def candidate_list_response(
@@ -157,13 +186,17 @@ def candidate_list_response(
     return CandidateListResponse(items=items, count=len(items))
 
 
-def candidate_detail_response(detail: CandidateDetail) -> CandidateDetailResponse:
+def candidate_detail_response(
+    detail: CandidateDetail,
+    governance: CandidateGovernanceProjection,
+) -> CandidateDetailResponse:
     return CandidateDetailResponse(
         candidate=_candidate_response(detail.candidate),
         signals=[_signal_response(signal) for signal in detail.signals],
         evidence=[_evidence_response(evidence) for evidence in detail.evidence],
         enterprise_context=_enterprise_context_response(detail.enterprise_context),
         dependency_context=_dependency_context_response(detail.dependency_context),
+        governance=_governance_response(governance),
     )
 
 
@@ -260,6 +293,46 @@ def _enterprise_context_response(
             )
             for item in context.direct_incidents
         ],
+    )
+
+
+def _governance_response(
+    governance: CandidateGovernanceProjection,
+) -> CandidateGovernanceResponse:
+    return CandidateGovernanceResponse(
+        state=governance.state,
+        revision=governance.revision,
+        decisions=[
+            _governance_decision_response(decision) for decision in governance.decisions
+        ],
+        technical_debt=_governance_technical_debt_response(governance.technical_debt),
+    )
+
+
+def _governance_decision_response(
+    decision: HumanDecision,
+) -> CandidateGovernanceDecisionResponse:
+    return CandidateGovernanceDecisionResponse(
+        human_decision_id=decision.human_decision_id,
+        sequence_number=decision.sequence_number,
+        decision=decision.decision_type,
+        rationale=decision.rationale,
+        requested_information=decision.requested_information,
+        actor_reference=decision.actor_reference,
+        created_at=decision.created_at,
+    )
+
+
+def _governance_technical_debt_response(
+    technical_debt: TechnicalDebt | None,
+) -> CandidateGovernanceTechnicalDebtResponse | None:
+    if technical_debt is None:
+        return None
+    return CandidateGovernanceTechnicalDebtResponse(
+        technical_debt_id=technical_debt.technical_debt_id,
+        lifecycle_status=technical_debt.lifecycle_status,
+        created_at=technical_debt.created_at,
+        source_candidate_id=technical_debt.source_candidate_id,
     )
 
 

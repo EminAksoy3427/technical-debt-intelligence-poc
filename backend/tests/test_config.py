@@ -177,6 +177,52 @@ def test_openai_provider_requires_key_and_model(
         )
 
 
+def test_human_governance_is_disabled_by_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("HUMAN_GOVERNANCE_ENABLED", raising=False)
+    monkeypatch.delenv("HUMAN_GOVERNANCE_ACTOR_REFERENCE", raising=False)
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.human_governance_enabled is False
+    assert app_settings.human_governance_actor_reference is None
+
+
+def test_human_governance_can_be_enabled_with_server_actor_reference(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HUMAN_GOVERNANCE_ENABLED", "true")
+    monkeypatch.setenv("HUMAN_GOVERNANCE_ACTOR_REFERENCE", "poc:local-reviewer")
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.human_governance_enabled is True
+    assert app_settings.human_governance_actor_reference == "poc:local-reviewer"
+
+
+@pytest.mark.parametrize("actor_reference", [None, "", "   "])
+def test_enabled_human_governance_requires_nonblank_actor_reference(
+    actor_reference: str | None,
+) -> None:
+    with pytest.raises(ValidationError, match="HUMAN_GOVERNANCE_ACTOR_REFERENCE"):
+        Settings(
+            _env_file=None,
+            human_governance_enabled=True,
+            human_governance_actor_reference=actor_reference,
+        )
+
+
+def test_human_governance_actor_reference_is_not_a_secret() -> None:
+    field_names = set(Settings.model_fields)
+    actor_annotation = Settings.model_fields[
+        "human_governance_actor_reference"
+    ].annotation
+
+    assert "human_governance_enabled" in field_names
+    assert actor_annotation == (str | None)
+
+
 def test_openai_api_key_is_masked_in_settings_repr() -> None:
     secret = "test-openai-secret-sentinel"
 
