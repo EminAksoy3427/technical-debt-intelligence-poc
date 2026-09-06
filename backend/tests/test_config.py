@@ -1,7 +1,7 @@
 import pytest
 from pydantic import ValidationError
 
-from app.core.config import Settings
+from app.core.config import AgentProviderName, Settings
 
 
 def test_cors_allowed_origins_default_to_empty(
@@ -102,6 +102,7 @@ def test_agent_runtime_limits_have_bounded_defaults(
     assert app_settings.agent_max_tool_calls == 3
     assert app_settings.agent_run_timeout_seconds == 60
     assert app_settings.agent_tool_timeout_seconds == 5
+    assert app_settings.agent_provider is AgentProviderName.DETERMINISTIC
 
     field_names = set(Settings.model_fields)
     assert {
@@ -144,3 +145,47 @@ def test_github_settings_have_no_token_and_safe_repr(
     assert "authorization" not in rendered
     assert "gho_" not in rendered
     assert "ghp_" not in rendered
+
+
+def test_deterministic_provider_requires_no_openai_configuration(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    for name in ("AGENT_PROVIDER", "OPENAI_API_KEY", "OPENAI_MODEL"):
+        monkeypatch.delenv(name, raising=False)
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.agent_provider is AgentProviderName.DETERMINISTIC
+    assert app_settings.openai_api_key is None
+    assert app_settings.openai_model is None
+
+
+@pytest.mark.parametrize(
+    ("api_key", "model"),
+    [(None, "test-model"), ("test-secret", None), ("", "test-model")],
+)
+def test_openai_provider_requires_key_and_model(
+    api_key: str | None,
+    model: str | None,
+) -> None:
+    with pytest.raises(ValidationError, match="OPENAI_API_KEY and OPENAI_MODEL"):
+        Settings(
+            _env_file=None,
+            agent_provider="openai",
+            openai_api_key=api_key,
+            openai_model=model,
+        )
+
+
+def test_openai_api_key_is_masked_in_settings_repr() -> None:
+    secret = "test-openai-secret-sentinel"
+
+    app_settings = Settings(
+        _env_file=None,
+        agent_provider="openai",
+        openai_api_key=secret,
+        openai_model="test-model",
+    )
+
+    assert secret not in repr(app_settings)
+    assert "**********" in repr(app_settings)

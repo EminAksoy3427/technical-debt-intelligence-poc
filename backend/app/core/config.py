@@ -1,5 +1,12 @@
-from pydantic import Field, SecretStr, field_validator
+from enum import StrEnum
+
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class AgentProviderName(StrEnum):
+    DETERMINISTIC = "deterministic"
+    OPENAI = "openai"
 
 
 class Settings(BaseSettings):
@@ -20,6 +27,10 @@ class Settings(BaseSettings):
     agent_max_tool_calls: int = Field(default=3, gt=0)
     agent_run_timeout_seconds: int = Field(default=60, gt=0)
     agent_tool_timeout_seconds: int = Field(default=5, gt=0)
+    agent_provider: AgentProviderName = AgentProviderName.DETERMINISTIC
+    openai_api_key: SecretStr | None = None
+    openai_model: str | None = None
+    openai_request_timeout_seconds: int = Field(default=30, gt=0)
     cors_allowed_origins: list[str] = Field(default_factory=list)
     allow_development_data_population: bool = False
 
@@ -35,6 +46,30 @@ class Settings(BaseSettings):
                 raise ValueError("CORS allowed origins must not use a wildcard")
             normalized.append(value)
         return normalized
+
+    @field_validator("openai_model")
+    @classmethod
+    def normalize_openai_model(cls, model: str | None) -> str | None:
+        if model is None:
+            return None
+        normalized = model.strip()
+        return normalized or None
+
+    @model_validator(mode="after")
+    def require_live_provider_configuration(self) -> "Settings":
+        if self.agent_provider is not AgentProviderName.OPENAI:
+            return self
+
+        has_api_key = (
+            self.openai_api_key is not None
+            and bool(self.openai_api_key.get_secret_value().strip())
+        )
+        if not has_api_key or self.openai_model is None:
+            raise ValueError(
+                "OPENAI_API_KEY and OPENAI_MODEL are required when "
+                "AGENT_PROVIDER=openai"
+            )
+        return self
 
 
 settings = Settings()

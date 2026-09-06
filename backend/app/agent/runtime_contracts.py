@@ -29,6 +29,7 @@ class RuntimeToolDescriptor(RuntimeContract):
     effect: ToolEffect
     risk: ToolRisk
     required_scopes: tuple[NonBlankIdentifier, ...]
+    input_schema: dict[str, JsonValue]
 
 
 class ToolResultObservation(RuntimeContract):

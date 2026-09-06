@@ -1,6 +1,6 @@
 # Architecture baseline
 
-Baseline: 5 September 2026, Day 3 / Package 6 complete. **CURRENT** describes
+Baseline: 6 September 2026, Day 3 / Package 7 complete. **CURRENT** describes
 repository code; **TARGET** describes future Option B work. [ADR 0001](../adr/0001-option-b-extensible-modular-monolith.md)
 records the decision; [domain invariants](../domain/invariants.md) govern both
 views. Connector extension is documented in
@@ -72,12 +72,13 @@ deterministic Policy boundary exist for Candidate-scoped READ tools:
 `read_candidate_enterprise_context`. Typed Structured Assessment, AgentRun,
 ToolExecution, and PolicyDecision audit contracts and persistence now exist as
 the audit boundary for a synchronous bounded Agent Runtime. The runtime uses an
-explicit provider decision port and a deterministic scripted provider, enforces
+explicit provider decision port, deterministic providers, and an optional live
+OpenAI adapter. It enforces
 iteration/tool/time budgets, evaluates registry-owned metadata through the
 deterministic Policy boundary before execution, and checkpoints audit records.
-There is currently no live provider/LLM integration, Knowledge provider
-contract, TechnicalDebt lifecycle implementation, Human Validation, or
-production WRITE tool. Candidate Detail now includes an Agent Investigation
+There is currently no Knowledge provider contract, TechnicalDebt lifecycle
+implementation, Human Validation, or production WRITE tool. Candidate Detail
+includes an Agent Investigation
 section that calls the real AgentRun POST/GET API.
 
 ```text
@@ -87,19 +88,22 @@ Candidate → AgentRun → provider decision → Tool Registry → Policy
 
 The bounded runtime is exposed only through Candidate-scoped POST/GET AgentRun
 routes. POST accepts no prompt, tool, authorization, provider, or model
-configuration. Server composition supplies a deterministic evidence-driven PoC
-provider and the existing READ/LOW-risk authorization. GET loads a persisted
+configuration. Server composition selects the default deterministic provider or
+the optional OpenAI Responses API adapter from trusted settings, and supplies the
+existing READ/LOW-risk authorization. GET loads a persisted
 aggregate scoped by both Candidate and AgentRun identity and exposes only safe
 product/audit response models. Runtime checkpoint commits are not enclosed in
 an API-wide transaction, so terminal FAILED and ABSTAINED resources remain
 durable. Candidate Detail renders a persisted AgentRun through the Agent
-Investigation section. The current provider remains deterministic.
+Investigation section. The client cannot select or discover the provider/model.
 
-Provider-visible context contains bounded tool descriptors and validated tool
-results, not sessions, settings, credentials, authorization authority, hidden
-reasoning, or evaluation ground truth. Synchronous timeout handling accounts
-for elapsed deadlines after a provider/tool returns; it does not claim hard
-cancellation of arbitrary Python calls.
+Provider-visible context contains bounded registry-derived tool descriptors,
+typed input schemas, and validated tool results, not sessions, settings,
+credentials, authorization authority, hidden reasoning, or evaluation ground
+truth. The live adapter uses a real HTTP request timeout no greater than the
+overall run budget and disables SDK retries. Synchronous tool timeout handling
+still accounts for elapsed deadlines after a tool returns; it does not claim
+hard cancellation of arbitrary Python calls.
 The dependency-lifecycle vertical slice implements an explicit Connector,
 SourceObservation, functional normalizer boundary, and Connector Registry
 contracts. GitHub Issues is registered as a second explicit connector and
@@ -205,10 +209,10 @@ the project; executable approval/policy/lifecycle machinery is future work.
 | Connector Contract | Implemented for dependency-lifecycle and github-issues: acquire observations/findings with provenance. GitHub Issues stop at SourceObservation |
 | Normalizer Contract | Implemented as a functional dependency-lifecycle boundary mapping to canonical `NormalizedSignal` / Signal + Evidence |
 | Connector Registry | Implemented as deterministic, explicit in-code composition outside the domain |
-| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime, Candidate-scoped POST/GET AgentRun API, and Candidate Detail Agent Investigation UI. Live provider/LLM integration and production WRITE tools are not implemented |
+| Agent Tool Contract | Implemented for Candidate-scoped READ tools with a bounded synchronous runtime, Candidate-scoped POST/GET AgentRun API, Candidate Detail Agent Investigation UI, and optional live OpenAI provider. Production WRITE tools are not implemented |
 | Tool Registry | Implemented as deterministic, explicit in-code composition. Availability does not grant permission |
 | Policy Port | Implemented as a deterministic in-process Policy boundary. The runtime persists its decisions; persistence grants no authorization |
-| Investigation provider | Typed next-step port plus deterministic scripted provider implemented. No live model/provider adapter exists |
+| Investigation provider | Typed next-step port, deterministic providers, and a stateless OpenAI Responses API adapter implemented. Provider selection is server-owned and deterministic remains the default |
 | Knowledge capability/provider | Supply contextual knowledge through a replaceable boundary |
 
 Introduce agent/tool/policy contracts only with their implemented vertical
@@ -277,9 +281,10 @@ Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`, and
 `/sources`; `frontend/app/pages/index.vue` redirects `/` to `/candidates`.
 Candidate pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
 Candidate Detail includes an Agent Investigation section that uses
-`useAgentRunApi` with the real AgentRun POST/GET API. The current investigation
-provider is deterministic and server-owned; this is not live LLM inference.
-Human Validation is not implemented. Sources & Connectors uses
+`useAgentRunApi` with the real AgentRun POST/GET API. The investigation provider
+is server-selected; the UI sends no provider, model, prompt, or authorization
+control and makes no claim about which provider ran. Human Validation is not
+implemented. Sources & Connectors uses
 `useConnectorApi` and real `GET /api/v1/connectors`.
 There is no runtime mock fallback. Blank `runtimeConfig.public.apiBaseUrl`
 raises a configuration error; pages show failure rather than silently

@@ -1,7 +1,9 @@
+import json
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import cast
 from uuid import UUID, uuid4
 
@@ -31,6 +33,12 @@ from app.agent.contracts import (
     ToolEffect,
     ToolRegistration,
     ToolRisk,
+)
+from app.agent.openai_provider import (
+    OpenAIAssessmentReference,
+    OpenAIGroundedClaim,
+    OpenAIProvider,
+    OpenAIStructuredAssessment,
 )
 from app.agent.policy import PolicyDecision, ToolAuthorizationContext
 from app.agent.ports import (
@@ -70,6 +78,7 @@ EVIDENCE_ID = UUID("30000000-0000-0000-0000-000000000001")
 RUN_ID = UUID("40000000-0000-0000-0000-000000000001")
 FIRST_EXECUTION_ID = UUID("50000000-0000-0000-0000-000000000001")
 SECOND_EXECUTION_ID = UUID("50000000-0000-0000-0000-000000000002")
+UNAVAILABLE_EVIDENCE_ID = UUID("30000000-0000-0000-0000-000000000099")
 NOW = datetime(2026, 9, 5, 12, 0, tzinfo=UTC)
 
 
@@ -389,6 +398,13 @@ def test_multi_tool_results_are_visible_to_subsequent_provider_steps(
 
     second_context = provider.received_contexts[1]
     third_context = provider.received_contexts[2]
+    evidence_descriptor = next(
+        descriptor
+        for descriptor in second_context.available_tools
+        if descriptor.tool_id == "read_candidate_evidence"
+    )
+    assert evidence_descriptor.input_schema["additionalProperties"] is False
+    assert evidence_descriptor.input_schema["required"] == ["candidate_id"]
     assert second_context.tool_results[0].result is not None
     assert second_context.tool_results[0].result["candidate_id"] == str(CANDIDATE_ID)
     assert len(third_context.tool_results) == 2
@@ -629,6 +645,84 @@ def test_invalid_or_ungrounded_assessment_fails_without_fake_completion(
     assert aggregate.agent_run.status is AgentRunStatus.FAILED
     assert aggregate.agent_run.stop_reason is AgentRunStopReason.PROVIDER_FAILURE
     assert aggregate.agent_run.structured_assessment is None
+
+
+def test_openai_projection_keeps_grounding_and_discards_raw_output(
+    database_engine: Engine,
+) -> None:
+    raw_output_sentinel = "raw-provider-output-must-not-be-persisted"
+
+    class ResponsesApi:
+        def __init__(self) -> None:
+            self.responses = iter(
+                (
+                    SimpleNamespace(
+                        status="completed",
+                        output=[
+                            SimpleNamespace(
+                                type="function_call",
+                                name="read_candidate_evidence",
+                                arguments=json.dumps(
+                                    {"candidate_id": str(CANDIDATE_ID)}
+                                ),
+                            )
+                        ],
+                        output_parsed=None,
+                    ),
+                    SimpleNamespace(
+                        status="completed",
+                        output=[
+                            SimpleNamespace(
+                                type="message",
+                                content=[
+                                    SimpleNamespace(
+                                        type="output_text",
+                                        text=raw_output_sentinel,
+                                    )
+                                ],
+                            )
+                        ],
+                        output_parsed=OpenAIStructuredAssessment(
+                            outcome=AssessmentOutcome.SUPPORTED,
+                            conclusion=OpenAIGroundedClaim(
+                                statement="This reference was not observed.",
+                                references=(
+                                    OpenAIAssessmentReference(
+                                        kind="EVIDENCE",
+                                        reference_id=UNAVAILABLE_EVIDENCE_ID,
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+            )
+
+        def parse(self, **_kwargs: object) -> object:
+            return next(self.responses)
+
+    client = SimpleNamespace(responses=ResponsesApi())
+    provider = OpenAIProvider(
+        client=client,
+        model="test-model",
+        request_timeout_seconds=15,
+    )
+    with Session(database_engine) as session:
+        aggregate = run_candidate_investigation(
+            session,
+            candidate_id=CANDIDATE_ID,
+            provider=provider,
+            registry=build_candidate_tool_registry(StubInvestigationReader()),
+            authorization=_authorization(),
+            clock=MutableClock(),
+            new_uuid=_id_factory(FIRST_EXECUTION_ID),
+        )
+
+    assert aggregate.agent_run.status is AgentRunStatus.FAILED
+    assert aggregate.agent_run.stop_reason is AgentRunStopReason.PROVIDER_FAILURE
+    assert aggregate.agent_run.structured_assessment is None
+    assert len(aggregate.tool_executions) == 1
+    assert raw_output_sentinel not in repr(aggregate)
 
 
 @pytest.mark.parametrize(

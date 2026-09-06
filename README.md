@@ -30,13 +30,14 @@ Connector, SourceObservation, and Connector Registry contracts exist for
 registered sources. An explicit Agent Tool contract, Tool Registry, and
 Policy boundary exist for Candidate-scoped READ tools. A bounded synchronous
 Agent Runtime now connects those tools to durable AgentRun, ToolExecution,
-PolicyDecision, and Structured Assessment audit records. A deterministic
-server-owned provider now exposes that runtime through Candidate-scoped POST/GET
-AgentRun APIs without accepting client prompts or authorization controls.
+PolicyDecision, and Structured Assessment audit records. Server-owned provider
+selection exposes that runtime through Candidate-scoped POST/GET AgentRun APIs
+without accepting client prompts or authorization controls.
 Candidate Detail includes an Agent Investigation section that calls those APIs.
-The current provider remains deterministic and server-owned. Live provider/LLM
-integration, Human Validation, and a TechnicalDebt lifecycle are not implemented.
-The runtime investigates only and grants no lifecycle authority. See the
+The deterministic provider remains the default/offline path; an optional live
+OpenAI Responses API provider can be selected only by server configuration.
+Human Validation and a TechnicalDebt lifecycle are not implemented. The runtime
+investigates only and grants no lifecycle authority. See the
 [architecture overview](docs/architecture/overview.md).
 
 ## Repository entry points
@@ -70,6 +71,18 @@ environment-backed configuration described in [backend/.env.example](backend/.en
 Tests that need live MSSQL are marked `integration`. Tests that need a live
 external HTTP source are marked `external`. The deterministic suite excludes
 both markers and must not require Internet access.
+
+Agent investigations default to `AGENT_PROVIDER=deterministic`, which requires
+no OpenAI configuration. Live inference requires server-side
+`AGENT_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL`; the API and browser
+cannot select the provider or model. The model only proposes existing READ tool
+calls. The Registry, Policy, and bounded Runtime authorize and execute them, and
+raw prompts, model responses, and reasoning are not persisted. After live
+settings are configured, the explicitly paid smoke test is:
+
+```text
+RUN_OPENAI_LIVE_TEST=1 python -m pytest -m external tests/integration/test_openai_provider_live.py
+```
 
 From `frontend`, `npm run dev` starts Nuxt and `npm test` runs Vitest, as defined
 in [package.json](frontend/package.json). Configure `NUXT_PUBLIC_API_BASE_URL`

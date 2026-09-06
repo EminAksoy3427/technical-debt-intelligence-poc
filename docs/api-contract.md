@@ -1,6 +1,6 @@
 # API contract — current implementation
 
-Baseline: 5 September 2026. Application resources use `/api/v1` by default
+Baseline: 6 September 2026. Application resources use `/api/v1` by default
 (`Settings.api_v1_prefix`). The current Nuxt client calls that prefix explicitly.
 
 ## Executable contract
@@ -25,7 +25,7 @@ automatic client generation is not claimed.
 | `GET /api/v1/health` | Liveness response: HTTP 200 with `{"status":"ok"}`; does not check database readiness |
 | `GET /api/v1/candidates` | Read all persisted Candidate summaries as `CandidateListResponse`: `items` and `count` |
 | `GET /api/v1/candidates/{candidate_id}` | Read one Candidate by UUID as `CandidateDetailResponse` |
-| `POST /api/v1/candidates/{candidate_id}/agent-runs` | Run the server-owned bounded deterministic investigation and return the persisted `AgentRunResponse`: HTTP 201 |
+| `POST /api/v1/candidates/{candidate_id}/agent-runs` | Run the server-owned bounded investigation and return the persisted `AgentRunResponse`: HTTP 201 |
 | `GET /api/v1/candidates/{candidate_id}/agent-runs/{agent_run_id}` | Read one persisted Candidate-scoped `AgentRunResponse` aggregate |
 | `GET /api/v1/connectors` | Read registered connector inventory as `ConnectorListResponse`: `items` and `count` |
 
@@ -66,8 +66,10 @@ Runtime error behavior:
 AgentRun POST accepts no request body. Prompts, tool selections, scripted steps,
 authorization controls, provider configuration and model settings are not part
 of the public contract; a supplied body is rejected with HTTP 422. The server
-composes a deterministic provider, Candidate READ Tool Registry, LOW-risk READ
-authorization and runtime limits. The provider executes no live model call.
+selects the default deterministic provider or optional live OpenAI provider from
+trusted configuration, then composes the Candidate READ Tool Registry, LOW-risk
+READ authorization and runtime limits. The OpenAI adapter proposes tool calls
+but never executes them.
 
 AgentRun responses expose run state and timestamps, Structured Assessment,
 ordered safe ToolExecution fields and ordered PolicyDecision audit facts. They
@@ -94,8 +96,9 @@ authorization or lifecycle endpoints are implemented.
 
 Starting an AgentRun investigates a Candidate; it does not validate the
 Candidate, create TechnicalDebt, authorize action, or establish causality/risk.
-The deterministic Structured Assessment remains evidence/tool-reference
-grounded and requires a later authorized human decision.
+Every Structured Assessment remains evidence/tool-reference grounded and
+requires a later authorized human decision. Runtime grounding validation remains
+authoritative for deterministic and live provider output.
 
 Registered is not healthy. Connector inventory is composition metadata, not a
 runtime health dashboard and not proof of successful acquisition.

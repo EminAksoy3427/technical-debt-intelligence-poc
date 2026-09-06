@@ -434,6 +434,7 @@ def _runtime_descriptors(registry: ToolRegistry) -> tuple[RuntimeToolDescriptor,
             effect=registration.descriptor.effect,
             risk=registration.descriptor.risk,
             required_scopes=tuple(sorted(registration.descriptor.required_scopes)),
+            input_schema=registration.input_model.model_json_schema(),
         )
         for registration in registry.list()
     )
