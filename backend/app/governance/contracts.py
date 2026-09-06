@@ -31,6 +31,14 @@ class StaleGovernanceRevision(ValueError):
     """The command expected a different governance revision than the current one."""
 
 
+class CandidateNotFound(ValueError):
+    """The Human Validation command referenced a Candidate that does not exist."""
+
+
+class GovernancePersistenceConflict(ValueError):
+    """A governance write violated a durable uniqueness guarantee."""
+
+
 @dataclass(frozen=True)
 class HumanActorContext:
     """Server-owned opaque actor reference for one Human Validation act."""

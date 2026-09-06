@@ -3,7 +3,9 @@ from logging.config import fileConfig
 import app.infrastructure.database.agent_audit_models  # noqa: F401
 import app.infrastructure.database.candidate_models  # noqa: F401
 import app.infrastructure.database.enterprise_estate_models  # noqa: F401
+import app.infrastructure.database.human_decision_models  # noqa: F401
 import app.infrastructure.database.signal_models  # noqa: F401
+import app.infrastructure.database.technical_debt_models  # noqa: F401
 from alembic import context
 from app.core.config import settings
 from app.infrastructure.database.base import Base

@@ -27,7 +27,9 @@ from app.infrastructure.database.enterprise_estate_models import (
     IncidentModel,
     TeamModel,
 )
+from app.infrastructure.database.human_decision_models import HumanDecisionModel
 from app.infrastructure.database.signal_models import EvidenceModel, SignalModel
+from app.infrastructure.database.technical_debt_models import TechnicalDebtModel
 
 EXPECTED_TABLES = {
     "enterprise_assets",
@@ -42,6 +44,8 @@ EXPECTED_TABLES = {
     "agent_runs",
     "tool_executions",
     "policy_decisions",
+    "human_decisions",
+    "technical_debts",
 }
 
 
@@ -199,8 +203,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260905_01"
-    assert head.down_revision == "20260831_01"
+    assert head.revision == "20260906_01"
+    assert head.down_revision == "20260905_01"
 
     output = StringIO()
     context = MigrationContext.configure(
@@ -220,6 +224,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert AgentRunModel.__table__.name == "agent_runs"
     assert ToolExecutionModel.__table__.name == "tool_executions"
     assert PolicyDecisionModel.__table__.name == "policy_decisions"
+    assert HumanDecisionModel.__table__.name == "human_decisions"
+    assert TechnicalDebtModel.__table__.name == "technical_debts"
 
     migration_sql = output.getvalue()
     for table_name in EXPECTED_TABLES:
@@ -236,3 +242,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert "DROP TABLE policy_decisions" in downgrade_sql
     assert "DROP TABLE tool_executions" in downgrade_sql
     assert "DROP TABLE agent_runs" in downgrade_sql
+    assert "DROP TABLE technical_debts" in downgrade_sql
+    assert "DROP TABLE human_decisions" in downgrade_sql
+    assert downgrade_sql.index("DROP TABLE technical_debts") < downgrade_sql.index(
+        "DROP TABLE human_decisions"
+    )

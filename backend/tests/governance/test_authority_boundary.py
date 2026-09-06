@@ -1,8 +1,11 @@
 import ast
+import inspect
 from pathlib import Path
 
 from app.agent.composition import build_candidate_tool_registry
 from app.domain.human_decisions import HumanDecisionType
+from app.governance.contracts import HumanActorContext, HumanValidationCommand
+from app.governance.human_validation import apply_human_validation
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GOVERNANCE_DIR = BACKEND_ROOT / "app" / "governance"
@@ -67,4 +70,37 @@ def test_governance_modules_do_not_import_agent_runtime() -> None:
         module == prefix or module.startswith(f"{prefix}.")
         for module in imported
         for prefix in forbidden_prefixes
+    )
+
+
+def test_human_validation_requires_server_owned_actor_context() -> None:
+    parameters = inspect.signature(apply_human_validation).parameters
+
+    assert list(parameters)[:3] == ["session", "command", "actor_context"]
+    assert parameters["command"].annotation is HumanValidationCommand
+    assert parameters["actor_context"].annotation is HumanActorContext
+    assert parameters["actor_context"].default is inspect.Parameter.empty
+    assert "actor_reference" not in HumanValidationCommand.__dataclass_fields__
+    assert "role" not in HumanValidationCommand.__dataclass_fields__
+    assert "authorization" not in HumanValidationCommand.__dataclass_fields__
+
+
+def test_agent_modules_do_not_import_governance_write_service() -> None:
+    imported: set[str] = set()
+    for path in sorted((BACKEND_ROOT / "app" / "agent").rglob("*.py")):
+        module = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for node in ast.walk(module):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom) and node.module is not None:
+                imported.add(node.module)
+                imported.update(
+                    f"{node.module}.{alias.name}" for alias in node.names
+                )
+
+    assert "app.governance.human_validation" not in imported
+    assert "app.governance.human_validation.apply_human_validation" not in imported
+    assert not any(
+        module == "apply_human_validation" or module.endswith(".apply_human_validation")
+        for module in imported
     )

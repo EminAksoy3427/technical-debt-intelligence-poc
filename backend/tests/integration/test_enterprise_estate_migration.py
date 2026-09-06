@@ -21,6 +21,8 @@ EXPECTED_TABLES = {
     "agent_runs",
     "tool_executions",
     "policy_decisions",
+    "human_decisions",
+    "technical_debts",
 }
 
 
