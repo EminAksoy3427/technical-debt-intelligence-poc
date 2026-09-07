@@ -127,6 +127,53 @@ def test_agent_runtime_limits_must_be_positive(field_name: str) -> None:
         Settings(_env_file=None, **{field_name: 0})
 
 
+def test_github_issue_target_settings_are_not_write_authority(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("GITHUB_REPOSITORY_OWNER", "EminAksoy3427")
+    monkeypatch.setenv("GITHUB_REPOSITORY_NAME", "technical-debt-connector-demo")
+    monkeypatch.setenv("GITHUB_ISSUE_TARGET_REPOSITORY_OWNER", "tdi-demo-target")
+    monkeypatch.setenv("GITHUB_ISSUE_TARGET_REPOSITORY_NAME", "tdi-action-preview")
+
+    app_settings = Settings(_env_file=None)
+    field_names = {name.lower() for name in Settings.model_fields}
+
+    assert app_settings.github_issue_target_repository_owner == "tdi-demo-target"
+    assert app_settings.github_issue_target_repository_name == "tdi-action-preview"
+    assert (
+        app_settings.github_issue_target_repository_owner
+        != app_settings.github_repository_owner
+    )
+    assert (
+        app_settings.github_issue_target_repository_name
+        != app_settings.github_repository_name
+    )
+    assert "github_token" not in field_names
+    assert "github_write_token" not in field_names
+    assert "github_issue_token" not in field_names
+    assert "human_action_execution_enabled" not in field_names
+    owner_annotation = Settings.model_fields[
+        "github_issue_target_repository_owner"
+    ].annotation
+    name_annotation = Settings.model_fields[
+        "github_issue_target_repository_name"
+    ].annotation
+    assert owner_annotation == (str | None)
+    assert name_annotation == (str | None)
+
+
+def test_github_issue_target_settings_default_to_unconfigured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("GITHUB_ISSUE_TARGET_REPOSITORY_OWNER", raising=False)
+    monkeypatch.delenv("GITHUB_ISSUE_TARGET_REPOSITORY_NAME", raising=False)
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.github_issue_target_repository_owner is None
+    assert app_settings.github_issue_target_repository_name is None
+
+
 def test_github_settings_have_no_token_and_safe_repr(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

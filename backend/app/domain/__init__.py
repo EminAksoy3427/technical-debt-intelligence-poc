@@ -1,3 +1,8 @@
+from app.domain.action_proposals import (
+    ActionProposal,
+    ActionType,
+    GitHubIssuePayload,
+)
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import (
@@ -18,6 +23,8 @@ from app.domain.signals import Evidence, Signal, SourceObservationRef
 from app.domain.technical_debts import TechnicalDebt, TechnicalDebtLifecycleStatus
 
 __all__ = [
+    "ActionProposal",
+    "ActionType",
     "AssetCriticality",
     "AssetLifecycleStatus",
     "AssetOwnership",
@@ -28,6 +35,7 @@ __all__ = [
     "CanonicalAssetRef",
     "EnterpriseAsset",
     "Evidence",
+    "GitHubIssuePayload",
     "HumanDecision",
     "HumanDecisionType",
     "Incident",

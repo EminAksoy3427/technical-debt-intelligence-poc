@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     github_repository_owner: str | None = None
     github_repository_name: str | None = None
     github_request_timeout_seconds: int = Field(default=5, gt=0)
+    github_issue_target_repository_owner: str | None = None
+    github_issue_target_repository_name: str | None = None
     agent_max_iterations: int = Field(default=6, gt=0)
     agent_max_tool_calls: int = Field(default=3, gt=0)
     agent_run_timeout_seconds: int = Field(default=60, gt=0)
@@ -66,6 +68,20 @@ class Settings(BaseSettings):
         if actor_reference is None:
             return None
         normalized = actor_reference.strip()
+        return normalized or None
+
+    @field_validator(
+        "github_issue_target_repository_owner",
+        "github_issue_target_repository_name",
+    )
+    @classmethod
+    def normalize_github_issue_target_repository_identity(
+        cls,
+        value: str | None,
+    ) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip()
         return normalized or None
 
     @model_validator(mode="after")

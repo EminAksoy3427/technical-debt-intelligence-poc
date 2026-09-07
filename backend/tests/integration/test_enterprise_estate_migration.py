@@ -23,6 +23,7 @@ EXPECTED_TABLES = {
     "policy_decisions",
     "human_decisions",
     "technical_debts",
+    "action_proposals",
 }
 
 
