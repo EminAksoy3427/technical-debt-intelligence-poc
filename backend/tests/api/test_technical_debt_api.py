@@ -223,6 +223,7 @@ def test_technical_debt_list_is_ordered_and_projects_candidate_facts(
         "asset_key": "repo-orbit-catalog",
         "asset_type": "REPOSITORY",
     }
+    assert "action_proposals" not in body["items"][0]
     assert datetime.fromisoformat(
         body["items"][0]["created_at"].replace("Z", "+00:00")
     ) == datetime(2026, 9, 6, 19, 1, tzinfo=UTC)
@@ -277,6 +278,7 @@ def test_technical_debt_detail_exposes_candidate_and_decision_provenance(
     assert datetime.fromisoformat(
         body["creation_human_decision"]["created_at"].replace("Z", "+00:00")
     ) == datetime(2026, 9, 6, 19, 3, tzinfo=UTC)
+    assert body["action_proposals"] == []
     serialized = str(body).lower()
     assert all(field not in serialized for field in FORBIDDEN_FIELDS)
 

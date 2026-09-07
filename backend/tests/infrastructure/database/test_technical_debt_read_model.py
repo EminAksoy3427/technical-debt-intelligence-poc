@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -11,6 +11,13 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 
+from app.domain.action_proposals import (
+    ActionProposal,
+    ActionType,
+    GitHubIssuePayload,
+    action_proposal_reconciliation_marker,
+    canonical_action_payload_fingerprint,
+)
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.enterprise_estate import AssetType
@@ -18,6 +25,9 @@ from app.domain.human_decisions import HumanDecisionType
 from app.domain.signals import Evidence, Signal
 from app.governance.contracts import HumanActorContext, HumanValidationCommand
 from app.governance.human_validation import apply_human_validation
+from app.infrastructure.database.action_proposal_persistence import (
+    persist_action_proposal,
+)
 from app.infrastructure.database.candidate_persistence import persist_candidate
 from app.infrastructure.database.enterprise_estate_models import EnterpriseAssetModel
 from app.infrastructure.database.human_decision_models import HumanDecisionModel
@@ -162,6 +172,7 @@ def test_list_and_detail_project_source_candidate_and_creation_decision(
         earlier.human_decision.human_decision_id
     )
     assert detail.technical_debt.lifecycle_status.value == "REGISTERED"
+    assert detail.action_proposals == ()
 
 
 def test_detail_returns_none_for_unknown_technical_debt(
@@ -220,3 +231,96 @@ def test_detail_rejects_non_validate_creation_decision(
     with Session(database_engine) as session:
         with pytest.raises(TechnicalDebtReadIntegrityError, match="VALIDATE"):
             load_technical_debt_detail(session, debt_id)
+
+
+def _proposal_for_debt(
+    technical_debt_id: UUID,
+    action_proposal_id: UUID,
+    created_at: datetime,
+    title: str,
+) -> ActionProposal:
+    marker = action_proposal_reconciliation_marker(action_proposal_id)
+    payload = GitHubIssuePayload(
+        title=title,
+        body=f"Technical debt remediation tracking issue\n\n{marker}\n",
+    )
+    return ActionProposal(
+        action_proposal_id=action_proposal_id,
+        technical_debt_id=technical_debt_id,
+        action_type=ActionType.CREATE_GITHUB_ISSUE,
+        target_repository_owner="tdi-demo-target",
+        target_repository_name="tdi-action-preview",
+        payload=payload,
+        payload_fingerprint=canonical_action_payload_fingerprint(
+            action_type=ActionType.CREATE_GITHUB_ISSUE.value,
+            target_repository_owner="tdi-demo-target",
+            target_repository_name="tdi-action-preview",
+            title=payload.title,
+            body=payload.body,
+        ),
+        reconciliation_marker=marker,
+        prepared_by="poc:local-reviewer",
+        created_at=created_at,
+    )
+
+
+def test_detail_projects_action_proposals_oldest_then_newest(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _persist_candidate(session, 21)
+        session.commit()
+
+    with Session(database_engine) as session:
+        created = apply_human_validation(
+            session,
+            HumanValidationCommand(
+                candidate_id=candidate.candidate_id,
+                decision=HumanDecisionType.VALIDATE,
+                expected_governance_revision=0,
+                rationale="Validated for ActionProposal projection.",
+            ),
+            HumanActorContext(actor_reference="poc:local-reviewer"),
+            clock=lambda: datetime(2026, 9, 6, 20, 3, tzinfo=UTC),
+        )
+
+    assert created.technical_debt is not None
+    technical_debt_id = created.technical_debt.technical_debt_id
+    later_id = UUID("00000000-0000-0000-0000-000000000522")
+    earlier_id = UUID("00000000-0000-0000-0000-000000000521")
+    with Session(database_engine) as session:
+        persist_action_proposal(
+            session,
+            _proposal_for_debt(
+                technical_debt_id,
+                later_id,
+                CREATED_AT + timedelta(minutes=2),
+                "Technical debt: later preview",
+            ),
+        )
+        persist_action_proposal(
+            session,
+            _proposal_for_debt(
+                technical_debt_id,
+                earlier_id,
+                CREATED_AT + timedelta(minutes=1),
+                "Technical debt: earlier preview",
+            ),
+        )
+        session.commit()
+
+    with Session(database_engine) as session:
+        detail = load_technical_debt_detail(session, technical_debt_id)
+
+    assert detail is not None
+    assert [item.action_proposal_id for item in detail.action_proposals] == [
+        earlier_id,
+        later_id,
+    ]
+    assert all(
+        item.action_type is ActionType.CREATE_GITHUB_ISSUE
+        for item in detail.action_proposals
+    )
+    assert not hasattr(detail.action_proposals[0], "approval")
+    assert not hasattr(detail.action_proposals[0], "execution")
+    assert not hasattr(detail.technical_debt, "action_proposal_id")

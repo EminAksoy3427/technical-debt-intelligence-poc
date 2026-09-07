@@ -17,6 +17,9 @@ CONNECTOR_DETAIL_PATH = "/api/v1/connectors/{connector_id}"
 HUMAN_DECISIONS_PATH = "/api/v1/candidates/{candidate_id}/human-decisions"
 TECHNICAL_DEBTS_PATH = "/api/v1/technical-debts"
 TECHNICAL_DEBT_DETAIL_PATH = "/api/v1/technical-debts/{technical_debt_id}"
+TECHNICAL_DEBT_ACTION_PROPOSALS_PATH = (
+    "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
+)
 HUMAN_VALIDATION_AUTHORITY_FIELDS = (
     "actor_reference",
     "role",
@@ -303,15 +306,56 @@ def test_openapi_technical_debt_read_contract() -> None:
     debt_schemas = {
         name: component
         for name, component in schema["components"]["schemas"].items()
-        if "TechnicalDebt" in name
+        if "TechnicalDebt" in name or name == "ActionProposalResponse"
     }
-    serialized_schemas = str(debt_schemas).lower()
+    exposed_properties = {
+        property_name.lower()
+        for component in debt_schemas.values()
+        for property_name in component.get("properties", {})
+    }
     for forbidden in (
         "risk",
         "effort",
         "priority",
         "validated_owner",
-        "owner",
         "target_date",
+        "approval",
+        "execution",
+        "verification",
+        "github_token",
     ):
-        assert forbidden not in serialized_schemas
+        assert forbidden not in exposed_properties
+
+    detail_schema = schema["components"]["schemas"]["TechnicalDebtDetailResponse"]
+    assert "action_proposals" in detail_schema["properties"]
+    assert set(paths[TECHNICAL_DEBT_ACTION_PROPOSALS_PATH]) == {"post"}
+    post_operation = paths[TECHNICAL_DEBT_ACTION_PROPOSALS_PATH]["post"]
+    assert "requestBody" not in post_operation
+    assert post_operation["responses"]["201"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/ActionProposalResponse"
+
+    proposal_schema = schema["components"]["schemas"]["ActionProposalResponse"]
+    assert set(proposal_schema["required"]) == {
+        "action_proposal_id",
+        "technical_debt_id",
+        "action_type",
+        "target_repository_owner",
+        "target_repository_name",
+        "title",
+        "body",
+        "payload_fingerprint",
+        "reconciliation_marker",
+        "prepared_by",
+        "created_at",
+    }
+    serialized_post = str(post_operation).lower()
+    for forbidden in (
+        "github_token",
+        "approval",
+        "execution",
+        "verification",
+        "effect",
+        "scope",
+    ):
+        assert forbidden not in serialized_post

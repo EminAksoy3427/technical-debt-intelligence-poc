@@ -4,6 +4,7 @@ import {
   createTechnicalDebtApi,
 } from '../../app/composables/useTechnicalDebtApi'
 import type {
+  ActionProposal,
   TechnicalDebtDetail,
   TechnicalDebtListResponse,
 } from '../../app/types/technicalDebtApi'
@@ -50,6 +51,7 @@ const detailPayload: TechnicalDebtDetail = {
     actor_reference: 'poc:local-reviewer',
     created_at: '2026-09-06T19:01:00+00:00',
   },
+  action_proposals: [],
 }
 
 function httpError(statusCode: number, detail: string) {
@@ -141,5 +143,47 @@ describe('createTechnicalDebtApi', () => {
         request: vi.fn().mockRejectedValue(malformed),
       }).getTechnicalDebt('not-a-uuid'),
     ).rejects.toMatchObject({ statusCode: 422 })
+  })
+
+  it('posts to the ActionProposal preparation endpoint without a client body', async () => {
+    const proposal: ActionProposal = {
+      action_proposal_id: '60000000-0000-0000-0000-000000000001',
+      technical_debt_id: TECHNICAL_DEBT_ID,
+      action_type: 'CREATE_GITHUB_ISSUE',
+      target_repository_owner: 'tdi-demo-target',
+      target_repository_name: 'tdi-action-preview',
+      title: 'Technical debt: svc-orbit-catalog',
+      body: 'Technical debt remediation tracking issue',
+      payload_fingerprint: 'abc123',
+      reconciliation_marker: 'tdiq-action-proposal:60000000-0000-0000-0000-000000000001',
+      prepared_by: 'poc:local-reviewer',
+      created_at: '2026-09-07T16:00:00+00:00',
+    }
+    const request = vi.fn().mockResolvedValue(proposal)
+    const api = createTechnicalDebtApi({ apiBaseUrl: API_ORIGIN, request })
+
+    const result = await api.prepareActionProposal(TECHNICAL_DEBT_ID)
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request).toHaveBeenCalledWith(
+      `${API_ORIGIN}/api/v1/technical-debts/${TECHNICAL_DEBT_ID}/action-proposals`,
+      { method: 'POST' },
+    )
+    expect(request.mock.calls[0]?.[1]).not.toHaveProperty('body')
+    expect(result).toBe(proposal)
+    expect(result).not.toHaveProperty('approval')
+    expect(result).not.toHaveProperty('execution')
+    expect(result).not.toHaveProperty('verification')
+  })
+
+  it('does not convert ActionProposal HTTP failures into a successful prepare', async () => {
+    const unavailable = httpError(503, 'Action preparation is unavailable because the server is not configured')
+
+    await expect(
+      createTechnicalDebtApi({
+        apiBaseUrl: API_ORIGIN,
+        request: vi.fn().mockRejectedValue(unavailable),
+      }).prepareActionProposal(TECHNICAL_DEBT_ID),
+    ).rejects.toBe(unavailable)
   })
 })

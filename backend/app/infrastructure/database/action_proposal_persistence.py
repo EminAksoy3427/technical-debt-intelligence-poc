@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.action_proposals import (
@@ -39,6 +40,22 @@ def load_action_proposal(
     if persisted is None:
         return None
     return _action_proposal_contract(persisted)
+
+
+def list_action_proposals_for_technical_debt(
+    session: Session,
+    technical_debt_id: UUID,
+) -> tuple[ActionProposal, ...]:
+    """Load ActionProposals for one TechnicalDebt, oldest then newest."""
+    persisted = session.scalars(
+        select(ActionProposalModel)
+        .where(ActionProposalModel.technical_debt_id == technical_debt_id)
+        .order_by(
+            ActionProposalModel.created_at.asc(),
+            ActionProposalModel.action_proposal_id.asc(),
+        )
+    ).all()
+    return tuple(_action_proposal_contract(item) for item in persisted)
 
 
 def _action_proposal_contract(persisted: ActionProposalModel) -> ActionProposal:

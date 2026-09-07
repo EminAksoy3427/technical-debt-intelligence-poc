@@ -1,10 +1,12 @@
 import type {
+  ActionProposalPresentation,
   TechnicalDebtCreationDecisionPresentation,
   TechnicalDebtDetailPresentation,
   TechnicalDebtListItem,
   TechnicalDebtSourceCandidatePresentation,
 } from '../types/technicalDebt'
 import type {
+  ActionProposal,
   TechnicalDebtCreationDecision,
   TechnicalDebtDetail,
   TechnicalDebtSourceCandidate,
@@ -32,6 +34,23 @@ export function toTechnicalDebtDetailPresentation(
     createdAt: detail.created_at,
     sourceCandidate: toSourceCandidatePresentation(detail.source_candidate),
     creationHumanDecision: toCreationDecisionPresentation(detail.creation_human_decision),
+    actionProposals: detail.action_proposals.map(toActionProposalPresentation),
+  }
+}
+
+export function toActionProposalPresentation(proposal: ActionProposal): ActionProposalPresentation {
+  return {
+    actionProposalId: proposal.action_proposal_id,
+    technicalDebtId: proposal.technical_debt_id,
+    actionType: proposal.action_type,
+    targetRepositoryOwner: proposal.target_repository_owner,
+    targetRepositoryName: proposal.target_repository_name,
+    title: proposal.title,
+    body: proposal.body,
+    payloadFingerprint: proposal.payload_fingerprint,
+    reconciliationMarker: proposal.reconciliation_marker,
+    preparedBy: proposal.prepared_by,
+    createdAt: proposal.created_at,
   }
 }
 

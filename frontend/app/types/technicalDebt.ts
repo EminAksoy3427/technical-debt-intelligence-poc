@@ -1,5 +1,6 @@
 import type { AssetType } from './candidateApi'
 import type { HumanDecisionType, TechnicalDebtLifecycleStatus } from './humanValidationApi'
+import type { ActionProposalActionType } from './technicalDebtApi'
 
 /**
  * Inventory presentation for one persisted TechnicalDebt.
@@ -32,12 +33,27 @@ export interface TechnicalDebtCreationDecisionPresentation {
   createdAt: string
 }
 
+export interface ActionProposalPresentation {
+  actionProposalId: string
+  technicalDebtId: string
+  actionType: ActionProposalActionType
+  targetRepositoryOwner: string
+  targetRepositoryName: string
+  title: string
+  body: string
+  payloadFingerprint: string
+  reconciliationMarker: string
+  preparedBy: string
+  createdAt: string
+}
+
 export interface TechnicalDebtDetailPresentation {
   technicalDebtId: string
   lifecycleStatus: TechnicalDebtLifecycleStatus
   createdAt: string
   sourceCandidate: TechnicalDebtSourceCandidatePresentation
   creationHumanDecision: TechnicalDebtCreationDecisionPresentation
+  actionProposals: ActionProposalPresentation[]
 }
 
 export const technicalDebtLifecycleStatusLabels: Record<TechnicalDebtLifecycleStatus, string> =

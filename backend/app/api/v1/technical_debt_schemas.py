@@ -4,6 +4,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from app.api.v1.candidate_schemas import CanonicalAssetResponse
+from app.domain.action_proposals import ActionProposal, ActionType
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.human_decisions import HumanDecision, HumanDecisionType
@@ -48,12 +49,27 @@ class TechnicalDebtCreationDecisionResponse(TechnicalDebtApiModel):
     created_at: datetime
 
 
+class ActionProposalResponse(TechnicalDebtApiModel):
+    action_proposal_id: UUID
+    technical_debt_id: UUID
+    action_type: ActionType
+    target_repository_owner: str
+    target_repository_name: str
+    title: str
+    body: str
+    payload_fingerprint: str
+    reconciliation_marker: str
+    prepared_by: str
+    created_at: datetime
+
+
 class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     technical_debt_id: UUID
     lifecycle_status: TechnicalDebtLifecycleStatus
     created_at: datetime
     source_candidate: TechnicalDebtSourceCandidateResponse
     creation_human_decision: TechnicalDebtCreationDecisionResponse
+    action_proposals: list[ActionProposalResponse]
 
 
 def technical_debt_list_response(
@@ -87,6 +103,25 @@ def technical_debt_detail_response(
         creation_human_decision=_creation_decision_response(
             detail.creation_human_decision
         ),
+        action_proposals=[
+            action_proposal_response(proposal) for proposal in detail.action_proposals
+        ],
+    )
+
+
+def action_proposal_response(proposal: ActionProposal) -> ActionProposalResponse:
+    return ActionProposalResponse(
+        action_proposal_id=proposal.action_proposal_id,
+        technical_debt_id=proposal.technical_debt_id,
+        action_type=proposal.action_type,
+        target_repository_owner=proposal.target_repository_owner,
+        target_repository_name=proposal.target_repository_name,
+        title=proposal.payload.title,
+        body=proposal.payload.body,
+        payload_fingerprint=proposal.payload_fingerprint,
+        reconciliation_marker=proposal.reconciliation_marker,
+        prepared_by=proposal.prepared_by,
+        created_at=proposal.created_at,
     )
 
 

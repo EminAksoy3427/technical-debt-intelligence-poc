@@ -2,8 +2,13 @@ import pytest
 from fastapi import HTTPException
 
 from app.api.dependencies import (
+    ACTION_PREPARATION_UNAVAILABLE_DETAIL,
+    ActionPreparationUnavailable,
     HumanGovernanceUnavailable,
+    get_action_preparation_actor_context,
+    get_action_preparation_context,
     get_human_actor_context,
+    human_actor_context_from_actor_reference,
     human_actor_context_from_settings,
 )
 from app.core.config import Settings, settings
@@ -53,3 +58,57 @@ def test_fastapi_dependency_uses_configured_server_actor(
     context = get_human_actor_context()
 
     assert context.actor_reference == "poc:local-reviewer"
+
+
+def test_action_preparation_reuses_actor_without_human_validation_enablement() -> None:
+    context = human_actor_context_from_actor_reference(
+        Settings(
+            _env_file=None,
+            human_governance_enabled=False,
+            human_governance_actor_reference="poc:local-reviewer",
+        )
+    )
+
+    assert context.actor_reference == "poc:local-reviewer"
+    with pytest.raises(HumanGovernanceUnavailable, match="not available"):
+        human_actor_context_from_settings(
+            Settings(
+                _env_file=None,
+                human_governance_enabled=False,
+                human_governance_actor_reference="poc:local-reviewer",
+            )
+        )
+
+
+def test_action_preparation_actor_fails_closed_when_unconfigured() -> None:
+    with pytest.raises(ActionPreparationUnavailable, match="not configured"):
+        human_actor_context_from_actor_reference(Settings(_env_file=None))
+
+
+def test_action_preparation_actor_dependency_uses_configured_actor(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "human_governance_enabled", False)
+    monkeypatch.setattr(
+        settings,
+        "human_governance_actor_reference",
+        "poc:local-reviewer",
+    )
+
+    context = get_action_preparation_actor_context()
+
+    assert context.actor_reference == "poc:local-reviewer"
+
+
+def test_action_preparation_context_dependency_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "github_issue_target_repository_owner", None)
+    monkeypatch.setattr(settings, "github_issue_target_repository_name", None)
+
+    with pytest.raises(HTTPException) as error:
+        get_action_preparation_context()
+
+    assert error.value.status_code == 503
+    assert error.value.detail == ACTION_PREPARATION_UNAVAILABLE_DETAIL
+    assert "GITHUB_ISSUE_TARGET" not in str(error.value.detail)

@@ -1,5 +1,5 @@
 from collections.abc import Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -23,6 +23,7 @@ from app.domain.human_decisions import HumanDecision, HumanDecisionType
 from app.domain.technical_debts import TechnicalDebt, TechnicalDebtLifecycleStatus
 from app.infrastructure.database.action_proposal_models import ActionProposalModel
 from app.infrastructure.database.action_proposal_persistence import (
+    list_action_proposals_for_technical_debt,
     load_action_proposal,
     persist_action_proposal,
 )
@@ -137,6 +138,7 @@ def _proposal(
     *,
     action_proposal_id: UUID = PROPOSAL_ID,
     technical_debt_id: UUID = TECHNICAL_DEBT_ID,
+    created_at: datetime = CREATED_AT,
     target_repository_owner: str = "tdi-demo-target",
     target_repository_name: str = "tdi-action-preview",
     title: str = "Technical debt: repo-borealis-renderer",
@@ -162,7 +164,7 @@ def _proposal(
         ),
         reconciliation_marker=marker,
         prepared_by="poc:local-reviewer",
-        created_at=CREATED_AT,
+        created_at=created_at,
     )
 
 
@@ -225,6 +227,30 @@ def test_two_proposals_for_the_same_technical_debt_are_persisted(
         assert first is not None
         assert second is not None
         assert first.reconciliation_marker != second.reconciliation_marker
+
+
+def test_list_action_proposals_for_technical_debt_is_oldest_then_newest(
+    database_engine: Engine,
+) -> None:
+    later = _proposal(
+        action_proposal_id=SECOND_PROPOSAL_ID,
+        created_at=CREATED_AT + timedelta(minutes=1),
+        title="Technical debt: later preview",
+    )
+    earlier = _proposal(created_at=CREATED_AT)
+    with Session(database_engine) as session:
+        persist_action_proposal(session, later)
+        persist_action_proposal(session, earlier)
+        session.commit()
+
+    with Session(database_engine) as session:
+        loaded = list_action_proposals_for_technical_debt(session, TECHNICAL_DEBT_ID)
+
+    assert [item.action_proposal_id for item in loaded] == [
+        PROPOSAL_ID,
+        SECOND_PROPOSAL_ID,
+    ]
+    assert loaded[0].created_at < loaded[1].created_at
 
 
 def test_duplicate_reconciliation_marker_is_rejected(database_engine: Engine) -> None:

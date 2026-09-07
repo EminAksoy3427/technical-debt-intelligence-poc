@@ -40,3 +40,22 @@ export const technicalDebtsSourceCandidateIntroduction =
 
 export const technicalDebtsCreationDecisionIntroduction =
   'The VALIDATE decision that created this TechnicalDebt. Audit actor is server-owned attribution, not verified employee identity.'
+
+export const technicalDebtsActionPreparationTitle = 'Action Preparation'
+
+export const technicalDebtsActionPreparationIntroduction =
+  'This is a prepared external action preview. No external change has been performed.'
+
+export const technicalDebtsActionPreparationPrepareHint =
+  'Prepare GitHub Issue creates a persisted preview only. It does not create a GitHub issue.'
+
+export const technicalDebtsActionPreparationPrepareLabel = 'Prepare GitHub Issue'
+
+export const technicalDebtsActionPreparationCurrentPreviewTitle =
+  'Current prepared preview'
+
+export const technicalDebtsActionPreparationEmptyPreview =
+  'No GitHub issue preview has been prepared yet.'
+
+export const technicalDebtsActionPreparationPreviousHeading = (count: number): string =>
+  `Previous prepared proposals (${count})`

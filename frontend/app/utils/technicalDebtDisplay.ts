@@ -42,3 +42,26 @@ export function technicalDebtInventoryCountLabel(count: number): string {
   const noun = count === 1 ? 'TechnicalDebt record' : 'TechnicalDebt records'
   return `${count} ${noun}`
 }
+
+export function actionProposalTargetRepository(
+  owner: string,
+  name: string,
+): string {
+  return `${owner}/${name}`
+}
+
+export function newestActionProposal<T>(proposals: readonly T[]): T | null {
+  if (proposals.length === 0) {
+    return null
+  }
+
+  return proposals[proposals.length - 1] ?? null
+}
+
+export function previousActionProposals<T>(proposals: readonly T[]): T[] {
+  if (proposals.length <= 1) {
+    return []
+  }
+
+  return proposals.slice(0, -1)
+}

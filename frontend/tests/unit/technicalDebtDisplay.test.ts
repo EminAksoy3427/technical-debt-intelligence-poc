@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
+  actionProposalTargetRepository,
   displayRecordedValue,
   hasRecordedValue,
   humanDecisionTypeDisplayLabel,
+  newestActionProposal,
+  previousActionProposals,
   technicalDebtInventoryCountLabel,
   technicalDebtLifecycleStatusDisplayLabel,
   technicalDebtPresentationTitle,
@@ -51,5 +54,22 @@ describe('technicalDebtInventoryCountLabel', () => {
   it('uses TechnicalDebt record wording', () => {
     expect(technicalDebtInventoryCountLabel(1)).toBe('1 TechnicalDebt record')
     expect(technicalDebtInventoryCountLabel(3)).toBe('3 TechnicalDebt records')
+  })
+})
+
+describe('action proposal display helpers', () => {
+  it('formats the target repository from backend owner and name', () => {
+    expect(actionProposalTargetRepository('tdi-demo-target', 'tdi-action-preview')).toBe(
+      'tdi-demo-target/tdi-action-preview',
+    )
+  })
+
+  it('treats the last backend-ordered proposal as the current preview', () => {
+    const proposals = [{ id: 'earlier' }, { id: 'later' }]
+
+    expect(newestActionProposal(proposals)).toEqual({ id: 'later' })
+    expect(previousActionProposals(proposals)).toEqual([{ id: 'earlier' }])
+    expect(newestActionProposal([])).toBeNull()
+    expect(previousActionProposals([{ id: 'only' }])).toEqual([])
   })
 })

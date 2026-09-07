@@ -1,5 +1,6 @@
 import { $fetch } from 'ofetch'
 import type {
+  ActionProposal,
   TechnicalDebtDetail,
   TechnicalDebtListResponse,
 } from '../types/technicalDebtApi'
@@ -13,11 +14,19 @@ export class TechnicalDebtApiConfigurationError extends Error {
   }
 }
 
-export type TechnicalDebtApiRequester = <T>(url: string) => Promise<T>
+export interface TechnicalDebtApiRequestOptions {
+  method?: 'GET' | 'POST'
+}
+
+export type TechnicalDebtApiRequester = <T>(
+  url: string,
+  options?: TechnicalDebtApiRequestOptions,
+) => Promise<T>
 
 export interface TechnicalDebtApi {
   listTechnicalDebts: () => Promise<TechnicalDebtListResponse>
   getTechnicalDebt: (technicalDebtId: string) => Promise<TechnicalDebtDetail>
+  prepareActionProposal: (technicalDebtId: string) => Promise<ActionProposal>
 }
 
 export function createTechnicalDebtApi(options: {
@@ -39,14 +48,24 @@ export function createTechnicalDebtApi(options: {
     )
   }
 
-  return { listTechnicalDebts, getTechnicalDebt }
+  async function prepareActionProposal(technicalDebtId: string): Promise<ActionProposal> {
+    return options.request<ActionProposal>(
+      resolveTechnicalDebtApiUrl(
+        options.apiBaseUrl,
+        `${TECHNICAL_DEBTS_PATH}/${encodeURIComponent(technicalDebtId)}/action-proposals`,
+      ),
+      { method: 'POST' },
+    )
+  }
+
+  return { listTechnicalDebts, getTechnicalDebt, prepareActionProposal }
 }
 
 export function useTechnicalDebtApi(): TechnicalDebtApi {
   const config = useRuntimeConfig()
   return createTechnicalDebtApi({
     apiBaseUrl: config.public.apiBaseUrl,
-    request: (url) => $fetch(url),
+    request: (url, requestOptions) => $fetch(url, requestOptions),
   })
 }
 

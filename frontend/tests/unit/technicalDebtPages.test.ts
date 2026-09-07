@@ -16,6 +16,9 @@ const table = readFrontendSource('components/technicalDebt/TechnicalDebtPortfoli
 const detailHeader = readFrontendSource(
   'components/technicalDebt/TechnicalDebtDetailHeader.vue',
 )
+const actionPreparation = readFrontendSource(
+  'components/technicalDebt/TechnicalDebtActionPreparation.vue',
+)
 const humanValidation = readFrontendSource(
   'components/candidate/CandidateHumanValidation.vue',
 )
@@ -25,7 +28,7 @@ const copy = readFrontendSource('utils/technicalDebtPageCopy.ts')
 const styles = readFrontendSource('assets/css/main.css')
 
 const inventorySources = `${inventoryPage}\n${table}\n${copy}`
-const detailSources = `${detailPage}\n${detailHeader}\n${copy}`
+const detailSources = `${detailPage}\n${detailHeader}\n${actionPreparation}\n${copy}`
 
 const inventedProductFields = [
   /\bRisk\b/,
@@ -217,5 +220,36 @@ describe('TechnicalDebt detail page', () => {
     expect(detailPage).not.toContain('Assign')
     expect(detailPage).not.toContain('Remediate')
     expect(detailPage).not.toContain('submitHumanValidation')
+  })
+
+  it('adds Action Preparation without inventing approval or execution', () => {
+    expect(detailPage).toContain('TechnicalDebtActionPreparation')
+    expect(actionPreparation).toContain('technicalDebtsActionPreparationTitle')
+    expect(copy).toContain("export const technicalDebtsActionPreparationTitle = 'Action Preparation'")
+    expect(copy).toContain(
+      'This is a prepared external action preview. No external change has been performed.',
+    )
+    expect(copy).toContain('Prepare GitHub Issue creates a persisted preview only.')
+    expect(copy).toContain("export const technicalDebtsActionPreparationPrepareLabel = 'Prepare GitHub Issue'")
+    expect(copy).toContain('Previous prepared proposals')
+    expect(actionPreparation).toContain('prepareActionProposal')
+    expect(actionPreparation).toContain('submitActionPreparation')
+    expect(actionPreparation).toContain('currentPreview.title')
+    expect(actionPreparation).toContain('currentPreview.body')
+    expect(actionPreparation).toContain('currentPreview.actionType')
+    expect(actionPreparation).toContain('proposal.payloadFingerprint')
+    expect(actionPreparation).toContain('proposal.reconciliationMarker')
+    expect(actionPreparation).toContain('previousProposals')
+    expect(actionPreparation).toContain('technicalDebtsActionPreparationPrepareLabel')
+    expect(actionPreparation).not.toContain('Approve')
+    expect(actionPreparation).not.toContain('Execute')
+    expect(actionPreparation).not.toContain('Verify')
+    expect(actionPreparation).not.toContain('Create Issue')
+    expect(actionPreparation).not.toContain('sha256')
+    expect(actionPreparation).not.toContain('canonical_action_payload_fingerprint')
+    expect(mapper).not.toContain('sha256')
+    expect(mapper).not.toContain('createHash')
+    expect(detailPage).not.toContain('$fetch(')
+    expect(actionPreparation).not.toContain('$fetch(')
   })
 })

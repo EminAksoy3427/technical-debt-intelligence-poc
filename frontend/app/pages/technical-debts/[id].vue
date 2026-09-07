@@ -26,7 +26,7 @@ const { getTechnicalDebt } = useTechnicalDebtApi()
 
 const technicalDebtId = computed(() => String(route.params.id ?? ''))
 
-const { data, pending, error } = await useAsyncData(
+const { data, pending, error, refresh } = await useAsyncData(
   () => `technical-debt-detail:${technicalDebtId.value}`,
   () => getTechnicalDebt(technicalDebtId.value),
   { server: false },
@@ -217,6 +217,12 @@ const creationDecisionRows = computed(() => {
           summary-label="Technical details"
         />
       </section>
+
+      <TechnicalDebtActionPreparation
+        :technical-debt-id="presentation.technicalDebtId"
+        :action-proposals="presentation.actionProposals"
+        :refresh-technical-debt="refresh"
+      />
     </template>
   </section>
 </template>

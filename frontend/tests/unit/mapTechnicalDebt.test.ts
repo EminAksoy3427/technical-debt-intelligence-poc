@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { TechnicalDebtDetail, TechnicalDebtSummary } from '../../app/types/technicalDebtApi'
 import {
+  toActionProposalPresentation,
   toTechnicalDebtDetailPresentation,
   toTechnicalDebtListItem,
 } from '../../app/utils/mapTechnicalDebt'
@@ -41,6 +42,7 @@ const detail: TechnicalDebtDetail = {
     actor_reference: 'poc:local-reviewer',
     created_at: '2026-09-06T19:01:00+00:00',
   },
+  action_proposals: [],
 }
 
 describe('toTechnicalDebtListItem', () => {
@@ -90,6 +92,7 @@ describe('toTechnicalDebtDetailPresentation', () => {
       actorReference: 'poc:local-reviewer',
       createdAt: '2026-09-06T19:01:00+00:00',
     })
+    expect(presentation.actionProposals).toEqual([])
   })
 
   it('does not copy Candidate Evidence into TechnicalDebt-owned evidence', () => {
@@ -100,5 +103,88 @@ describe('toTechnicalDebtDetailPresentation', () => {
     expect(presentation).not.toHaveProperty('risk')
     expect(presentation).not.toHaveProperty('effort')
     expect(presentation).not.toHaveProperty('owner')
+  })
+})
+
+describe('toActionProposalPresentation', () => {
+  it('maps persisted backend proposal fields without inventing status', () => {
+    const proposal = {
+      action_proposal_id: '60000000-0000-0000-0000-000000000001',
+      technical_debt_id: TECHNICAL_DEBT_ID,
+      action_type: 'CREATE_GITHUB_ISSUE' as const,
+      target_repository_owner: 'tdi-demo-target',
+      target_repository_name: 'tdi-action-preview',
+      title: 'Technical debt: svc-orbit-catalog',
+      body: 'Exact backend body',
+      payload_fingerprint: 'abc123fingerprint',
+      reconciliation_marker: 'tdiq-action-proposal:60000000-0000-0000-0000-000000000001',
+      prepared_by: 'poc:local-reviewer',
+      created_at: '2026-09-07T16:00:00+00:00',
+    }
+
+    const presentation = toActionProposalPresentation(proposal)
+
+    expect(presentation).toEqual({
+      actionProposalId: proposal.action_proposal_id,
+      technicalDebtId: TECHNICAL_DEBT_ID,
+      actionType: 'CREATE_GITHUB_ISSUE',
+      targetRepositoryOwner: 'tdi-demo-target',
+      targetRepositoryName: 'tdi-action-preview',
+      title: proposal.title,
+      body: proposal.body,
+      payloadFingerprint: proposal.payload_fingerprint,
+      reconciliationMarker: proposal.reconciliation_marker,
+      preparedBy: proposal.prepared_by,
+      createdAt: proposal.created_at,
+    })
+    expect(presentation).not.toHaveProperty('approval')
+    expect(presentation).not.toHaveProperty('execution')
+    expect(presentation).not.toHaveProperty('verification')
+    expect(presentation).not.toHaveProperty('status')
+  })
+})
+
+describe('toTechnicalDebtDetailPresentation action proposals', () => {
+  it('preserves backend proposal order without inventing an active proposal', () => {
+    const withProposals: TechnicalDebtDetail = {
+      ...detail,
+      action_proposals: [
+        {
+          action_proposal_id: '60000000-0000-0000-0000-000000000001',
+          technical_debt_id: TECHNICAL_DEBT_ID,
+          action_type: 'CREATE_GITHUB_ISSUE',
+          target_repository_owner: 'tdi-demo-target',
+          target_repository_name: 'tdi-action-preview',
+          title: 'Earlier title',
+          body: 'Earlier body',
+          payload_fingerprint: 'fingerprint-1',
+          reconciliation_marker: 'tdiq-action-proposal:60000000-0000-0000-0000-000000000001',
+          prepared_by: 'poc:local-reviewer',
+          created_at: '2026-09-07T16:00:00+00:00',
+        },
+        {
+          action_proposal_id: '60000000-0000-0000-0000-000000000002',
+          technical_debt_id: TECHNICAL_DEBT_ID,
+          action_type: 'CREATE_GITHUB_ISSUE',
+          target_repository_owner: 'tdi-demo-target',
+          target_repository_name: 'tdi-action-preview',
+          title: 'Later title',
+          body: 'Later body',
+          payload_fingerprint: 'fingerprint-2',
+          reconciliation_marker: 'tdiq-action-proposal:60000000-0000-0000-0000-000000000002',
+          prepared_by: 'poc:local-reviewer',
+          created_at: '2026-09-07T16:01:00+00:00',
+        },
+      ],
+    }
+
+    const presentation = toTechnicalDebtDetailPresentation(withProposals)
+
+    expect(presentation.actionProposals.map((item) => item.actionProposalId)).toEqual([
+      '60000000-0000-0000-0000-000000000001',
+      '60000000-0000-0000-0000-000000000002',
+    ])
+    expect(presentation.actionProposals[0]).not.toHaveProperty('active')
+    expect(presentation.actionProposals[1]).not.toHaveProperty('selected')
   })
 })

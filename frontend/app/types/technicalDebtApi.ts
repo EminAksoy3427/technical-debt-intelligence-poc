@@ -1,8 +1,10 @@
 /**
  * FastAPI TechnicalDebt API wire DTOs.
- * These types describe JSON from GET /api/v1/technical-debts and
- * GET /api/v1/technical-debts/{technical_debt_id}.
+ * These types describe JSON from GET /api/v1/technical-debts,
+ * GET /api/v1/technical-debts/{technical_debt_id}, and
+ * POST /api/v1/technical-debts/{technical_debt_id}/action-proposals.
  * REGISTERED is the only lifecycle status the API currently returns.
+ * CREATE_GITHUB_ISSUE is the only ActionProposal action type currently returned.
  */
 
 import type { CanonicalAssetResponse } from './candidateApi'
@@ -38,10 +40,27 @@ export interface TechnicalDebtCreationDecision {
   created_at: string
 }
 
+export type ActionProposalActionType = 'CREATE_GITHUB_ISSUE'
+
+export interface ActionProposal {
+  action_proposal_id: string
+  technical_debt_id: string
+  action_type: ActionProposalActionType
+  target_repository_owner: string
+  target_repository_name: string
+  title: string
+  body: string
+  payload_fingerprint: string
+  reconciliation_marker: string
+  prepared_by: string
+  created_at: string
+}
+
 export interface TechnicalDebtDetail {
   technical_debt_id: string
   lifecycle_status: TechnicalDebtLifecycleStatus
   created_at: string
   source_candidate: TechnicalDebtSourceCandidate
   creation_human_decision: TechnicalDebtCreationDecision
+  action_proposals: ActionProposal[]
 }
