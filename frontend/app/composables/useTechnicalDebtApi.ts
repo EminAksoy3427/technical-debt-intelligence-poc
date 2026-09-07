@@ -1,6 +1,10 @@
 import { $fetch } from 'ofetch'
 import type {
+  ActionApproval,
+  ActionExecution,
   ActionProposal,
+  ActionVerification,
+  ApproveActionProposalRequest,
   TechnicalDebtDetail,
   TechnicalDebtListResponse,
 } from '../types/technicalDebtApi'
@@ -16,6 +20,7 @@ export class TechnicalDebtApiConfigurationError extends Error {
 
 export interface TechnicalDebtApiRequestOptions {
   method?: 'GET' | 'POST'
+  body?: ApproveActionProposalRequest
 }
 
 export type TechnicalDebtApiRequester = <T>(
@@ -27,6 +32,20 @@ export interface TechnicalDebtApi {
   listTechnicalDebts: () => Promise<TechnicalDebtListResponse>
   getTechnicalDebt: (technicalDebtId: string) => Promise<TechnicalDebtDetail>
   prepareActionProposal: (technicalDebtId: string) => Promise<ActionProposal>
+  approveActionProposal: (
+    technicalDebtId: string,
+    actionProposalId: string,
+    request: ApproveActionProposalRequest,
+  ) => Promise<ActionApproval>
+  executeActionProposal: (
+    technicalDebtId: string,
+    actionProposalId: string,
+  ) => Promise<ActionExecution>
+  verifyActionExecution: (
+    technicalDebtId: string,
+    actionProposalId: string,
+    actionExecutionId: string,
+  ) => Promise<ActionVerification>
 }
 
 export function createTechnicalDebtApi(options: {
@@ -58,7 +77,55 @@ export function createTechnicalDebtApi(options: {
     )
   }
 
-  return { listTechnicalDebts, getTechnicalDebt, prepareActionProposal }
+  async function approveActionProposal(
+    technicalDebtId: string,
+    actionProposalId: string,
+    request: ApproveActionProposalRequest,
+  ): Promise<ActionApproval> {
+    return options.request<ActionApproval>(
+      resolveTechnicalDebtApiUrl(
+        options.apiBaseUrl,
+        `${TECHNICAL_DEBTS_PATH}/${encodeURIComponent(technicalDebtId)}/action-proposals/${encodeURIComponent(actionProposalId)}/approvals`,
+      ),
+      { method: 'POST', body: request },
+    )
+  }
+
+  async function executeActionProposal(
+    technicalDebtId: string,
+    actionProposalId: string,
+  ): Promise<ActionExecution> {
+    return options.request<ActionExecution>(
+      resolveTechnicalDebtApiUrl(
+        options.apiBaseUrl,
+        `${TECHNICAL_DEBTS_PATH}/${encodeURIComponent(technicalDebtId)}/action-proposals/${encodeURIComponent(actionProposalId)}/executions`,
+      ),
+      { method: 'POST' },
+    )
+  }
+
+  async function verifyActionExecution(
+    technicalDebtId: string,
+    actionProposalId: string,
+    actionExecutionId: string,
+  ): Promise<ActionVerification> {
+    return options.request<ActionVerification>(
+      resolveTechnicalDebtApiUrl(
+        options.apiBaseUrl,
+        `${TECHNICAL_DEBTS_PATH}/${encodeURIComponent(technicalDebtId)}/action-proposals/${encodeURIComponent(actionProposalId)}/executions/${encodeURIComponent(actionExecutionId)}/verifications`,
+      ),
+      { method: 'POST' },
+    )
+  }
+
+  return {
+    listTechnicalDebts,
+    getTechnicalDebt,
+    prepareActionProposal,
+    approveActionProposal,
+    executeActionProposal,
+    verifyActionExecution,
+  }
 }
 
 export function useTechnicalDebtApi(): TechnicalDebtApi {

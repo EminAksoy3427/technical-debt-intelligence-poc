@@ -4,7 +4,10 @@ import {
   createTechnicalDebtApi,
 } from '../../app/composables/useTechnicalDebtApi'
 import type {
+  ActionApproval,
+  ActionExecution,
   ActionProposal,
+  ActionVerification,
   TechnicalDebtDetail,
   TechnicalDebtListResponse,
 } from '../../app/types/technicalDebtApi'
@@ -52,6 +55,10 @@ const detailPayload: TechnicalDebtDetail = {
     created_at: '2026-09-06T19:01:00+00:00',
   },
   action_proposals: [],
+  action_approvals: [],
+  action_policy_decisions: [],
+  action_executions: [],
+  action_verifications: [],
 }
 
 function httpError(statusCode: number, detail: string) {
@@ -185,5 +192,75 @@ describe('createTechnicalDebtApi', () => {
         request: vi.fn().mockRejectedValue(unavailable),
       }).prepareActionProposal(TECHNICAL_DEBT_ID),
     ).rejects.toBe(unavailable)
+  })
+
+  it('posts approval intent with only the persisted payload fingerprint', async () => {
+    const approval: ActionApproval = {
+      action_approval_id: '70000000-0000-0000-0000-000000000001',
+      action_proposal_id: '60000000-0000-0000-0000-000000000001',
+      payload_fingerprint: 'a'.repeat(64),
+      actor_reference: 'poc:server-owned-actor',
+      created_at: '2026-09-07T16:01:00+00:00',
+    }
+    const request = vi.fn().mockResolvedValue(approval)
+    const api = createTechnicalDebtApi({ apiBaseUrl: API_ORIGIN, request })
+
+    await api.approveActionProposal(
+      TECHNICAL_DEBT_ID,
+      approval.action_proposal_id,
+      { expected_payload_fingerprint: approval.payload_fingerprint },
+    )
+
+    expect(request).toHaveBeenCalledTimes(1)
+    expect(request.mock.calls[0]?.[1]).toEqual({
+      method: 'POST',
+      body: { expected_payload_fingerprint: approval.payload_fingerprint },
+    })
+    expect(request.mock.calls[0]?.[1]?.body).not.toHaveProperty('actor')
+    expect(request.mock.calls[0]?.[1]?.body).not.toHaveProperty('approved')
+    expect(request.mock.calls[0]?.[1]?.body).not.toHaveProperty('repository')
+    expect(request.mock.calls[0]?.[1]?.body).not.toHaveProperty('policy_decision')
+  })
+
+  it('posts execution and verification without bodies', async () => {
+    const proposalId = '60000000-0000-0000-0000-000000000001'
+    const execution: ActionExecution = {
+      action_execution_id: '80000000-0000-0000-0000-000000000001',
+      action_proposal_id: proposalId,
+      technical_debt_id: TECHNICAL_DEBT_ID,
+      action_type: 'CREATE_GITHUB_ISSUE',
+      creation_policy_decision_id: '81000000-0000-0000-0000-000000000001',
+      status: 'SUCCEEDED',
+      external_issue_id: 123,
+      external_issue_number: 42,
+      external_issue_url: 'https://github.example.test/exact/persisted/issues/42',
+      safe_error_category: null,
+      started_at: '2026-09-07T16:02:00+00:00',
+      completed_at: '2026-09-07T16:02:01+00:00',
+    }
+    const verification: ActionVerification = {
+      action_verification_id: '90000000-0000-0000-0000-000000000001',
+      action_execution_id: execution.action_execution_id,
+      result: 'PASS',
+      observed_issue_number: 42,
+      observed_issue_url: execution.external_issue_url,
+      safe_reason_code: null,
+      created_at: '2026-09-07T16:03:00+00:00',
+    }
+    const request = vi.fn().mockResolvedValueOnce(execution).mockResolvedValueOnce(verification)
+    const api = createTechnicalDebtApi({ apiBaseUrl: API_ORIGIN, request })
+
+    await api.executeActionProposal(TECHNICAL_DEBT_ID, proposalId)
+    await api.verifyActionExecution(
+      TECHNICAL_DEBT_ID,
+      proposalId,
+      execution.action_execution_id,
+    )
+
+    expect(request).toHaveBeenCalledTimes(2)
+    expect(request.mock.calls[0]?.[1]).toEqual({ method: 'POST' })
+    expect(request.mock.calls[1]?.[1]).toEqual({ method: 'POST' })
+    expect(request.mock.calls[0]?.[1]).not.toHaveProperty('body')
+    expect(request.mock.calls[1]?.[1]).not.toHaveProperty('body')
   })
 })

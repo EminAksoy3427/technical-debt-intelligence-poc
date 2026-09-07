@@ -963,6 +963,148 @@ a {
   line-height: var(--line-body);
 }
 
+.governance-workbench {
+  margin-top: var(--space-2);
+  overflow: hidden;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.governance-workbench__header,
+.governance-stage {
+  padding: 1.25rem;
+}
+
+.governance-workbench__header {
+  background: var(--color-status-info-bg);
+}
+
+.governance-workbench__header h2,
+.governance-stage__header h2 {
+  margin: 0;
+  font-size: var(--text-section);
+  line-height: var(--line-tight);
+}
+
+.governance-workbench__header > p:last-child,
+.governance-stage__header > p:last-child {
+  margin: 0.375rem 0 0;
+  color: var(--color-muted);
+  line-height: 1.5;
+}
+
+.governance-stage {
+  border-top: 1px solid var(--color-border);
+}
+
+.governance-stage__eyebrow {
+  margin: 0 0 0.25rem;
+  color: var(--color-primary-strong);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.governance-record,
+.governance-notice,
+.governance-write-boundary,
+.governance-external-reference {
+  margin: var(--space-2) 0 0;
+}
+
+.governance-record {
+  padding-left: var(--space-2);
+  border-left: 0.25rem solid var(--color-primary);
+}
+
+.governance-notice,
+.governance-write-boundary {
+  max-width: 52rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius);
+  background: var(--color-status-info-bg);
+  line-height: 1.5;
+}
+
+.governance-write-boundary {
+  border-left: 0.25rem solid var(--color-primary);
+}
+
+.governance-status {
+  display: inline-block;
+  margin: 0 0 var(--space-1);
+  padding: 0.2rem 0.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.governance-status[data-status='UNKNOWN'],
+.governance-status[data-status='UNAVAILABLE'] {
+  background: var(--color-status-info-bg);
+}
+
+.button--approval {
+  border-color: var(--color-primary-strong);
+  background: var(--color-primary-strong);
+}
+
+.governance-external-reference a {
+  font-weight: 600;
+}
+
+.governance-timeline {
+  display: grid;
+  gap: 0;
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.governance-timeline li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  gap: 0.75rem;
+  padding-bottom: 1rem;
+}
+
+.governance-timeline li:not(:last-child)::before {
+  position: absolute;
+  top: 0.75rem;
+  bottom: 0;
+  left: 0.34375rem;
+  width: 1px;
+  background: var(--color-border-strong);
+  content: '';
+}
+
+.governance-timeline__marker {
+  position: relative;
+  z-index: 1;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-top: 0.25rem;
+  border: 2px solid var(--color-primary);
+  border-radius: 50%;
+  background: var(--color-surface);
+}
+
+.governance-timeline p,
+.governance-timeline time {
+  margin: 0.2rem 0 0;
+  color: var(--color-muted);
+  font-size: var(--text-meta);
+}
+
+.governance-record-reference {
+  overflow-wrap: anywhere;
+}
+
 .sources-subsection-heading {
   margin: var(--space-2) 0 0;
   font-size: 0.9375rem;

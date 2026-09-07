@@ -43,6 +43,10 @@ const detail: TechnicalDebtDetail = {
     created_at: '2026-09-06T19:01:00+00:00',
   },
   action_proposals: [],
+  action_approvals: [],
+  action_policy_decisions: [],
+  action_executions: [],
+  action_verifications: [],
 }
 
 describe('toTechnicalDebtListItem', () => {
@@ -93,6 +97,10 @@ describe('toTechnicalDebtDetailPresentation', () => {
       createdAt: '2026-09-06T19:01:00+00:00',
     })
     expect(presentation.actionProposals).toEqual([])
+    expect(presentation.actionApprovals).toEqual([])
+    expect(presentation.actionPolicyDecisions).toEqual([])
+    expect(presentation.actionExecutions).toEqual([])
+    expect(presentation.actionVerifications).toEqual([])
   })
 
   it('does not copy Candidate Evidence into TechnicalDebt-owned evidence', () => {

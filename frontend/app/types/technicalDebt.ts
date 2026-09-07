@@ -1,6 +1,14 @@
 import type { AssetType } from './candidateApi'
 import type { HumanDecisionType, TechnicalDebtLifecycleStatus } from './humanValidationApi'
-import type { ActionProposalActionType } from './technicalDebtApi'
+import type {
+  ActionExecutionErrorCategory,
+  ActionExecutionStatus,
+  ActionPolicyOutcome,
+  ActionPolicyReasonCode,
+  ActionProposalActionType,
+  ActionVerificationReasonCode,
+  ActionVerificationResult,
+} from './technicalDebtApi'
 
 /**
  * Inventory presentation for one persisted TechnicalDebt.
@@ -47,6 +55,49 @@ export interface ActionProposalPresentation {
   createdAt: string
 }
 
+export interface ActionApprovalPresentation {
+  actionApprovalId: string
+  actionProposalId: string
+  payloadFingerprint: string
+  actorReference: string
+  createdAt: string
+}
+
+export interface ActionPolicyDecisionPresentation {
+  actionPolicyDecisionId: string
+  actionProposalId: string
+  actionApprovalId: string | null
+  decision: ActionPolicyOutcome
+  ruleId: string
+  reasonCode: ActionPolicyReasonCode
+  createdAt: string
+}
+
+export interface ActionExecutionPresentation {
+  actionExecutionId: string
+  actionProposalId: string
+  technicalDebtId: string
+  actionType: ActionProposalActionType
+  creationPolicyDecisionId: string
+  status: ActionExecutionStatus
+  externalIssueId: number | null
+  externalIssueNumber: number | null
+  externalIssueUrl: string | null
+  safeErrorCategory: ActionExecutionErrorCategory | null
+  startedAt: string
+  completedAt: string | null
+}
+
+export interface ActionVerificationPresentation {
+  actionVerificationId: string
+  actionExecutionId: string
+  result: ActionVerificationResult
+  observedIssueNumber: number | null
+  observedIssueUrl: string | null
+  safeReasonCode: ActionVerificationReasonCode | null
+  createdAt: string
+}
+
 export interface TechnicalDebtDetailPresentation {
   technicalDebtId: string
   lifecycleStatus: TechnicalDebtLifecycleStatus
@@ -54,6 +105,10 @@ export interface TechnicalDebtDetailPresentation {
   sourceCandidate: TechnicalDebtSourceCandidatePresentation
   creationHumanDecision: TechnicalDebtCreationDecisionPresentation
   actionProposals: ActionProposalPresentation[]
+  actionApprovals: ActionApprovalPresentation[]
+  actionPolicyDecisions: ActionPolicyDecisionPresentation[]
+  actionExecutions: ActionExecutionPresentation[]
+  actionVerifications: ActionVerificationPresentation[]
 }
 
 export const technicalDebtLifecycleStatusLabels: Record<TechnicalDebtLifecycleStatus, string> =

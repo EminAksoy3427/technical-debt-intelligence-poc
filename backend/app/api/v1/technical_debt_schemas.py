@@ -11,6 +11,11 @@ from app.domain.action_executions import (
     ActionExecutionStatus,
 )
 from app.domain.action_proposals import ActionProposal, ActionType
+from app.domain.action_policy import (
+    ActionPolicyDecision,
+    ActionPolicyOutcome,
+    ActionPolicyReasonCode,
+)
 from app.domain.action_verifications import (
     ActionVerification,
     ActionVerificationReasonCode,
@@ -92,6 +97,16 @@ class ActionApprovalResponse(TechnicalDebtApiModel):
     created_at: datetime
 
 
+class ActionPolicyDecisionResponse(TechnicalDebtApiModel):
+    action_policy_decision_id: UUID
+    action_proposal_id: UUID
+    action_approval_id: UUID | None
+    decision: ActionPolicyOutcome
+    rule_id: str
+    reason_code: ActionPolicyReasonCode
+    created_at: datetime
+
+
 class ActionExecutionResponse(TechnicalDebtApiModel):
     action_execution_id: UUID
     action_proposal_id: UUID
@@ -125,6 +140,7 @@ class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     creation_human_decision: TechnicalDebtCreationDecisionResponse
     action_proposals: list[ActionProposalResponse]
     action_approvals: list[ActionApprovalResponse]
+    action_policy_decisions: list[ActionPolicyDecisionResponse]
     action_executions: list[ActionExecutionResponse]
     action_verifications: list[ActionVerificationResponse]
 
@@ -166,6 +182,10 @@ def technical_debt_detail_response(
         action_approvals=[
             action_approval_response(approval) for approval in detail.action_approvals
         ],
+        action_policy_decisions=[
+            action_policy_decision_response(decision)
+            for decision in detail.action_policy_decisions
+        ],
         action_executions=[
             action_execution_response(execution)
             for execution in detail.action_executions
@@ -200,6 +220,20 @@ def action_approval_response(approval: ActionApproval) -> ActionApprovalResponse
         payload_fingerprint=approval.payload_fingerprint,
         actor_reference=approval.actor_reference,
         created_at=approval.created_at,
+    )
+
+
+def action_policy_decision_response(
+    decision: ActionPolicyDecision,
+) -> ActionPolicyDecisionResponse:
+    return ActionPolicyDecisionResponse(
+        action_policy_decision_id=decision.action_policy_decision_id,
+        action_proposal_id=decision.action_proposal_id,
+        action_approval_id=decision.action_approval_id,
+        decision=decision.decision,
+        rule_id=decision.rule_id,
+        reason_code=decision.reason_code,
+        created_at=decision.created_at,
     )
 
 

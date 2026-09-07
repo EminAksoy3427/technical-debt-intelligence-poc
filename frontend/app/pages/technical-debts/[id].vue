@@ -223,6 +223,11 @@ const creationDecisionRows = computed(() => {
         :action-proposals="presentation.actionProposals"
         :refresh-technical-debt="refresh"
       />
+
+      <TechnicalDebtActionWorkbench
+        :presentation="presentation"
+        :refresh-technical-debt="refresh"
+      />
     </template>
   </section>
 </template>

@@ -11,6 +11,12 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session
 
+from app.domain.action_approvals import ActionApproval
+from app.domain.action_policy import (
+    ActionPolicyDecision,
+    ActionPolicyOutcome,
+    ActionPolicyReasonCode,
+)
 from app.domain.action_proposals import (
     ActionProposal,
     ActionType,
@@ -27,6 +33,12 @@ from app.governance.contracts import HumanActorContext, HumanValidationCommand
 from app.governance.human_validation import apply_human_validation
 from app.infrastructure.database.action_proposal_persistence import (
     persist_action_proposal,
+)
+from app.infrastructure.database.action_approval_persistence import (
+    persist_action_approval,
+)
+from app.infrastructure.database.action_policy_persistence import (
+    persist_action_policy_decision,
 )
 from app.infrastructure.database.candidate_persistence import persist_candidate
 from app.infrastructure.database.enterprise_estate_models import EnterpriseAssetModel
@@ -174,6 +186,7 @@ def test_list_and_detail_project_source_candidate_and_creation_decision(
     assert detail.technical_debt.lifecycle_status.value == "REGISTERED"
     assert detail.action_proposals == ()
     assert detail.action_approvals == ()
+    assert detail.action_policy_decisions == ()
     assert detail.action_executions == ()
     assert detail.action_verifications == ()
 
@@ -328,5 +341,89 @@ def test_detail_projects_action_proposals_oldest_then_newest(
     assert not hasattr(detail.action_proposals[0], "execution")
     assert not hasattr(detail.technical_debt, "action_proposal_id")
     assert detail.action_approvals == ()
+    assert detail.action_policy_decisions == ()
     assert detail.action_executions == ()
     assert detail.action_verifications == ()
+
+
+def test_detail_projects_persisted_policy_decisions_in_deterministic_order(
+    database_engine: Engine,
+) -> None:
+    with Session(database_engine) as session:
+        candidate = _persist_candidate(session, 31)
+        session.commit()
+
+    with Session(database_engine) as session:
+        created = apply_human_validation(
+            session,
+            HumanValidationCommand(
+                candidate_id=candidate.candidate_id,
+                decision=HumanDecisionType.VALIDATE,
+                expected_governance_revision=0,
+                rationale="Validated for policy projection.",
+            ),
+            HumanActorContext(actor_reference="poc:local-reviewer"),
+            clock=lambda: CREATED_AT,
+        )
+
+    assert created.technical_debt is not None
+    debt_id = created.technical_debt.technical_debt_id
+    denied_proposal = _proposal_for_debt(
+        debt_id,
+        UUID("00000000-0000-0000-0000-000000000531"),
+        CREATED_AT + timedelta(minutes=1),
+        "Denied proposal",
+    )
+    allowed_proposal = _proposal_for_debt(
+        debt_id,
+        UUID("00000000-0000-0000-0000-000000000532"),
+        CREATED_AT + timedelta(minutes=2),
+        "Allowed proposal",
+    )
+    approval = ActionApproval(
+        action_approval_id=UUID("00000000-0000-0000-0000-000000000541"),
+        action_proposal_id=allowed_proposal.action_proposal_id,
+        payload_fingerprint=allowed_proposal.payload_fingerprint,
+        actor_reference="poc:local-reviewer",
+        created_at=CREATED_AT + timedelta(minutes=3),
+    )
+    denied = ActionPolicyDecision(
+        action_policy_decision_id=UUID("00000000-0000-0000-0000-000000000551"),
+        action_proposal_id=denied_proposal.action_proposal_id,
+        action_approval_id=None,
+        decision=ActionPolicyOutcome.DENY,
+        rule_id="approval-required",
+        reason_code=ActionPolicyReasonCode.APPROVAL_MISSING,
+        created_at=CREATED_AT + timedelta(minutes=4),
+    )
+    allowed = ActionPolicyDecision(
+        action_policy_decision_id=UUID("00000000-0000-0000-0000-000000000552"),
+        action_proposal_id=allowed_proposal.action_proposal_id,
+        action_approval_id=approval.action_approval_id,
+        decision=ActionPolicyOutcome.ALLOW,
+        rule_id="governed-github-issue",
+        reason_code=ActionPolicyReasonCode.POLICY_ALLOWED,
+        created_at=CREATED_AT + timedelta(minutes=5),
+    )
+    with Session(database_engine) as session:
+        persist_action_proposal(session, denied_proposal)
+        persist_action_proposal(session, allowed_proposal)
+        persist_action_approval(session, approval)
+        persist_action_policy_decision(session, allowed)
+        persist_action_policy_decision(session, denied)
+        session.commit()
+
+    with Session(database_engine) as session:
+        detail = load_technical_debt_detail(session, debt_id)
+
+    assert detail is not None
+    assert [item.decision for item in detail.action_policy_decisions] == [
+        ActionPolicyOutcome.DENY,
+        ActionPolicyOutcome.ALLOW,
+    ]
+    assert detail.action_policy_decisions[0].reason_code is (
+        ActionPolicyReasonCode.APPROVAL_MISSING
+    )
+    assert detail.action_policy_decisions[1].action_approval_id == (
+        approval.action_approval_id
+    )

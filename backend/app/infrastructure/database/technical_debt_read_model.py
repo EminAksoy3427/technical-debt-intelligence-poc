@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.domain.action_approvals import ActionApproval
 from app.domain.action_executions import ActionExecution
+from app.domain.action_policy import ActionPolicyDecision
 from app.domain.action_proposals import ActionProposal
 from app.domain.action_verifications import ActionVerification
 from app.domain.candidates import Candidate
@@ -15,6 +16,9 @@ from app.infrastructure.database.action_approval_persistence import (
 )
 from app.infrastructure.database.action_execution_persistence import (
     list_action_executions_for_technical_debt,
+)
+from app.infrastructure.database.action_policy_persistence import (
+    list_action_policy_decisions_for_proposal,
 )
 from app.infrastructure.database.action_proposal_persistence import (
     list_action_proposals_for_technical_debt,
@@ -47,6 +51,7 @@ class TechnicalDebtDetail:
     creation_human_decision: HumanDecision
     action_proposals: tuple[ActionProposal, ...]
     action_approvals: tuple[ActionApproval, ...]
+    action_policy_decisions: tuple[ActionPolicyDecision, ...]
     action_executions: tuple[ActionExecution, ...]
     action_verifications: tuple[ActionVerification, ...]
 
@@ -127,6 +132,29 @@ def load_technical_debt_detail(
         ) from error
 
     try:
+        action_policy_decisions = tuple(
+            decision
+            for proposal in action_proposals
+            for decision in list_action_policy_decisions_for_proposal(
+                session,
+                proposal.action_proposal_id,
+            )
+        )
+        action_policy_decisions = tuple(
+            sorted(
+                action_policy_decisions,
+                key=lambda item: (
+                    item.created_at,
+                    item.action_policy_decision_id.hex,
+                ),
+            )
+        )
+    except ValueError as error:
+        raise TechnicalDebtReadIntegrityError(
+            "Persisted ActionPolicyDecision data failed integrity validation"
+        ) from error
+
+    try:
         action_executions = list_action_executions_for_technical_debt(
             session,
             technical_debt.technical_debt_id,
@@ -152,6 +180,7 @@ def load_technical_debt_detail(
         creation_human_decision=creation_human_decision,
         action_proposals=action_proposals,
         action_approvals=action_approvals,
+        action_policy_decisions=action_policy_decisions,
         action_executions=action_executions,
         action_verifications=action_verifications,
     )

@@ -1,12 +1,20 @@
 import type {
+  ActionApprovalPresentation,
+  ActionExecutionPresentation,
+  ActionPolicyDecisionPresentation,
   ActionProposalPresentation,
+  ActionVerificationPresentation,
   TechnicalDebtCreationDecisionPresentation,
   TechnicalDebtDetailPresentation,
   TechnicalDebtListItem,
   TechnicalDebtSourceCandidatePresentation,
 } from '../types/technicalDebt'
 import type {
+  ActionApproval,
+  ActionExecution,
+  ActionPolicyDecision,
   ActionProposal,
+  ActionVerification,
   TechnicalDebtCreationDecision,
   TechnicalDebtDetail,
   TechnicalDebtSourceCandidate,
@@ -35,6 +43,71 @@ export function toTechnicalDebtDetailPresentation(
     sourceCandidate: toSourceCandidatePresentation(detail.source_candidate),
     creationHumanDecision: toCreationDecisionPresentation(detail.creation_human_decision),
     actionProposals: detail.action_proposals.map(toActionProposalPresentation),
+    actionApprovals: detail.action_approvals.map(toActionApprovalPresentation),
+    actionPolicyDecisions: detail.action_policy_decisions.map(
+      toActionPolicyDecisionPresentation,
+    ),
+    actionExecutions: detail.action_executions.map(toActionExecutionPresentation),
+    actionVerifications: detail.action_verifications.map(toActionVerificationPresentation),
+  }
+}
+
+export function toActionApprovalPresentation(
+  approval: ActionApproval,
+): ActionApprovalPresentation {
+  return {
+    actionApprovalId: approval.action_approval_id,
+    actionProposalId: approval.action_proposal_id,
+    payloadFingerprint: approval.payload_fingerprint,
+    actorReference: approval.actor_reference,
+    createdAt: approval.created_at,
+  }
+}
+
+export function toActionPolicyDecisionPresentation(
+  decision: ActionPolicyDecision,
+): ActionPolicyDecisionPresentation {
+  return {
+    actionPolicyDecisionId: decision.action_policy_decision_id,
+    actionProposalId: decision.action_proposal_id,
+    actionApprovalId: decision.action_approval_id,
+    decision: decision.decision,
+    ruleId: decision.rule_id,
+    reasonCode: decision.reason_code,
+    createdAt: decision.created_at,
+  }
+}
+
+export function toActionExecutionPresentation(
+  execution: ActionExecution,
+): ActionExecutionPresentation {
+  return {
+    actionExecutionId: execution.action_execution_id,
+    actionProposalId: execution.action_proposal_id,
+    technicalDebtId: execution.technical_debt_id,
+    actionType: execution.action_type,
+    creationPolicyDecisionId: execution.creation_policy_decision_id,
+    status: execution.status,
+    externalIssueId: execution.external_issue_id,
+    externalIssueNumber: execution.external_issue_number,
+    externalIssueUrl: execution.external_issue_url,
+    safeErrorCategory: execution.safe_error_category,
+    startedAt: execution.started_at,
+    completedAt: execution.completed_at,
+  }
+}
+
+export function toActionVerificationPresentation(
+  verification: ActionVerification,
+): ActionVerificationPresentation {
+  return {
+    actionVerificationId: verification.action_verification_id,
+    actionExecutionId: verification.action_execution_id,
+    result: verification.result,
+    observedIssueNumber: verification.observed_issue_number,
+    observedIssueUrl: verification.observed_issue_url,
+    safeReasonCode: verification.safe_reason_code,
+    createdAt: verification.created_at,
   }
 }
 
