@@ -9,11 +9,16 @@ from app.actions.contracts import (
     InvalidActionPreparationTarget,
     action_preparation_context_from_settings,
 )
+from app.actions.github_issue_executor import GitHubIssueExecutor
 from app.agent.provider_composition import build_candidate_investigation_provider
 from app.agent.runtime_contracts import InvestigationProvider
 from app.core.config import Settings, settings
 from app.governance.contracts import HumanActorContext
 from app.infrastructure.database.engine import create_database_engine
+from app.infrastructure.github_issue_executor import (
+    GitHubIssueExecutorConfiguration,
+    HttpGitHubIssueExecutor,
+)
 
 ACTION_PREPARATION_UNAVAILABLE_DETAIL = (
     "Action preparation is unavailable because the server is not configured"
@@ -89,6 +94,36 @@ def get_action_approval_session(
             "the service owns the approval transaction"
         )
     return session
+
+
+def get_action_execution_session(
+    session: Annotated[Session, Depends(get_database_session)],
+) -> Session:
+    """Return a transaction-free Session for the three-phase execution service."""
+    if session.in_transaction():
+        raise RuntimeError(
+            "execute_action_proposal requires a transaction-free Session; "
+            "the service owns all execution transactions"
+        )
+    return session
+
+
+def get_github_issue_executor() -> GitHubIssueExecutor | None:
+    """Build the dedicated writer only when the server owns a nonblank token."""
+    token = settings.github_issue_executor_token
+    if token is None or not token.get_secret_value().strip():
+        return None
+    return HttpGitHubIssueExecutor(
+        GitHubIssueExecutorConfiguration(
+            token=token,
+            connect_timeout_seconds=(
+                settings.github_issue_executor_connect_timeout_seconds
+            ),
+            request_timeout_seconds=(
+                settings.github_issue_executor_request_timeout_seconds
+            ),
+        )
+    )
 
 
 def human_actor_context_from_actor_reference(

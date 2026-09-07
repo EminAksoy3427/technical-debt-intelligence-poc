@@ -209,8 +209,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260907_02"
-    assert head.down_revision == "20260907_01"
+    assert head.revision == "20260907_03"
+    assert head.down_revision == "20260907_02"
 
     output = StringIO()
     context = MigrationContext.configure(

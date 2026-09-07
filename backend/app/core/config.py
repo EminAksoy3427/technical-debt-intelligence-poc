@@ -25,6 +25,13 @@ class Settings(BaseSettings):
     github_request_timeout_seconds: int = Field(default=5, gt=0)
     github_issue_target_repository_owner: str | None = None
     github_issue_target_repository_name: str | None = None
+    github_issue_executor_token: SecretStr | None = None
+    github_issue_executor_connect_timeout_seconds: int = Field(
+        default=5, gt=0, le=60
+    )
+    github_issue_executor_request_timeout_seconds: int = Field(
+        default=15, gt=0, le=120
+    )
     agent_max_iterations: int = Field(default=6, gt=0)
     agent_max_tool_calls: int = Field(default=3, gt=0)
     agent_run_timeout_seconds: int = Field(default=60, gt=0)

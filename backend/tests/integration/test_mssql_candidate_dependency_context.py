@@ -86,7 +86,7 @@ def test_mssql_loads_deterministic_candidate_dependency_context() -> None:
                     MigrationContext.configure(
                         session.connection()
                     ).get_current_revision()
-                    == "20260831_01"
+                    == "20260907_03"
                 )
                 seed_enterprise_estate(session)
                 service_candidate = _persist_candidate(

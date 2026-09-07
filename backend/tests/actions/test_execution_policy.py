@@ -5,6 +5,8 @@ from uuid import UUID
 from app.actions.execution_policy import (
     ActionPolicyResult,
     evaluate_action_execution_policy,
+    evaluate_persisted_action_execution_policy,
+    record_action_execution_policy_decision,
 )
 from app.domain.action_approvals import ActionApproval
 from app.domain.action_policy import ActionPolicyOutcome, ActionPolicyReasonCode
@@ -37,6 +39,7 @@ def _evaluate(**overrides: object) -> ActionPolicyResult:
         "target_repository_name": NAME,
         "approval": _approval(),
         "execution_enabled": True,
+        "executor_ready": True,
         "allowed_repository_owner": OWNER,
         "allowed_repository_name": NAME,
     }
@@ -80,6 +83,23 @@ def test_execution_disabled_denies() -> None:
 
     assert result.decision is ActionPolicyOutcome.DENY
     assert result.reason_code is ActionPolicyReasonCode.EXECUTION_DISABLED
+
+
+def test_executor_unavailable_denies() -> None:
+    result = _evaluate(executor_ready=False)
+
+    assert result.decision is ActionPolicyOutcome.DENY
+    assert result.reason_code is ActionPolicyReasonCode.EXECUTION_DISABLED
+
+
+def test_executor_readiness_is_required_at_every_policy_boundary() -> None:
+    for policy_function in (
+        evaluate_action_execution_policy,
+        record_action_execution_policy_decision,
+        evaluate_persisted_action_execution_policy,
+    ):
+        parameter = signature(policy_function).parameters["executor_ready"]
+        assert parameter.default is parameter.empty
 
 
 def test_trusted_conditions_allow() -> None:

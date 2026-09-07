@@ -1,6 +1,7 @@
 from logging.config import fileConfig
 
 import app.infrastructure.database.action_approval_models  # noqa: F401
+import app.infrastructure.database.action_execution_models  # noqa: F401
 import app.infrastructure.database.action_policy_models  # noqa: F401
 import app.infrastructure.database.action_proposal_models  # noqa: F401
 import app.infrastructure.database.agent_audit_models  # noqa: F401

@@ -366,7 +366,7 @@ def test_approve_does_not_invoke_github_or_http(
     assert _approval_count(database_engine) == 1
 
 
-def test_actions_package_has_no_executor_or_github_write() -> None:
+def test_actions_package_has_no_github_transport_or_agent_policy() -> None:
     imported: set[str] = set()
     source_chunks: list[str] = []
     for path in sorted(ACTIONS_DIR.glob("*.py")):
@@ -392,7 +392,6 @@ def test_actions_package_has_no_executor_or_github_write() -> None:
     )
     assert "client.post(" not in joined
     assert "GITHUB_TOKEN" not in joined
-    assert "ActionExecution" not in joined
     assert "Verification" not in joined
 
 

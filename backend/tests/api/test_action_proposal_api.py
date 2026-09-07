@@ -57,7 +57,6 @@ TARGET_NAME = "tdi-action-preview"
 BASE_TIME = datetime(2026, 9, 7, 16, 0, tzinfo=UTC)
 FORBIDDEN_FIELDS = (
     "approved",
-    "execution",
     "executed",
     "verification",
     "verified",
@@ -432,7 +431,7 @@ def test_action_proposal_api_has_no_github_write_or_token() -> None:
     )
     assert "GITHUB_TOKEN" not in text
     assert "github_token" not in text
-    assert "ActionExecution" not in text
+    assert "Authorization" not in text
     assert "Verification" not in text
 
 

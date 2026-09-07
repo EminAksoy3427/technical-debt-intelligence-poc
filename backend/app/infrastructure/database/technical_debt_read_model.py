@@ -4,12 +4,16 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.domain.action_approvals import ActionApproval
+from app.domain.action_executions import ActionExecution
 from app.domain.action_proposals import ActionProposal
 from app.domain.candidates import Candidate
 from app.domain.human_decisions import HumanDecision, HumanDecisionType
 from app.domain.technical_debts import TechnicalDebt
 from app.infrastructure.database.action_approval_persistence import (
     list_action_approvals_for_technical_debt,
+)
+from app.infrastructure.database.action_execution_persistence import (
+    list_action_executions_for_technical_debt,
 )
 from app.infrastructure.database.action_proposal_persistence import (
     list_action_proposals_for_technical_debt,
@@ -39,6 +43,7 @@ class TechnicalDebtDetail:
     creation_human_decision: HumanDecision
     action_proposals: tuple[ActionProposal, ...]
     action_approvals: tuple[ActionApproval, ...]
+    action_executions: tuple[ActionExecution, ...]
 
 
 def list_technical_debt_summaries(
@@ -116,12 +121,23 @@ def load_technical_debt_detail(
             "Persisted ActionApproval data failed integrity validation"
         ) from error
 
+    try:
+        action_executions = list_action_executions_for_technical_debt(
+            session,
+            technical_debt.technical_debt_id,
+        )
+    except ValueError as error:
+        raise TechnicalDebtReadIntegrityError(
+            "Persisted ActionExecution data failed integrity validation"
+        ) from error
+
     return TechnicalDebtDetail(
         technical_debt=technical_debt,
         source_candidate=source_candidate,
         creation_human_decision=creation_human_decision,
         action_proposals=action_proposals,
         action_approvals=action_approvals,
+        action_executions=action_executions,
     )
 
 

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.domain.action_approvals import ActionApproval
 from app.domain.action_proposals import ActionType
 from app.infrastructure.database.action_approval_models import ActionApprovalModel
+from app.infrastructure.database.action_execution_models import ActionExecutionModel
 from app.infrastructure.database.action_proposal_models import ActionProposalModel
 from app.infrastructure.database.technical_debt_models import TechnicalDebtModel
 
@@ -109,9 +110,18 @@ def list_create_github_issue_approvals_for_technical_debt(
             ActionApprovalModel.action_proposal_id
             == ActionProposalModel.action_proposal_id,
         )
+        .outerjoin(
+            ActionExecutionModel,
+            ActionExecutionModel.action_proposal_id
+            == ActionApprovalModel.action_proposal_id,
+        )
         .where(ActionProposalModel.technical_debt_id == technical_debt_id)
         .where(
             ActionProposalModel.action_type == ActionType.CREATE_GITHUB_ISSUE.value
+        )
+        .where(
+            (ActionExecutionModel.action_execution_id.is_(None))
+            | (ActionExecutionModel.status != "FAILED")
         )
         .order_by(
             ActionApprovalModel.created_at.asc(),

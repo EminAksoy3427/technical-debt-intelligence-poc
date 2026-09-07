@@ -49,6 +49,10 @@ class ActionApprovalPersistenceConflict(ValueError):
     """An ActionApproval write violated a durable integrity guarantee."""
 
 
+class LogicalActionExecutionConflict(ValueError):
+    """Another proposal occupies the logical external CREATE action."""
+
+
 @dataclass(frozen=True)
 class PrepareActionProposalCommand:
     """Untrusted prepare intent. Preview semantics are not client-supplied."""
@@ -69,6 +73,14 @@ class ApproveActionProposalCommand:
             raise ValueError(
                 "expected_payload_fingerprint must be a SHA-256 hex digest"
             )
+
+
+@dataclass(frozen=True)
+class ExecuteActionProposalCommand:
+    """Untrusted execute intent containing identities only."""
+
+    technical_debt_id: UUID
+    action_proposal_id: UUID
 
 
 @dataclass(frozen=True)

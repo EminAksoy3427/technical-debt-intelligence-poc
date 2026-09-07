@@ -59,7 +59,7 @@ from app.infrastructure.database.technical_debt_persistence import (
 )
 from app.signal_ingestion import NormalizedSignal
 
-EXPECTED_HEAD = "20260907_02"
+EXPECTED_HEAD = "20260907_03"
 ACTOR = HumanActorContext(actor_reference="poc:local-reviewer")
 
 

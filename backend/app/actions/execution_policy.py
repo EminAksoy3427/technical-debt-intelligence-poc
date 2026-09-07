@@ -40,6 +40,7 @@ def evaluate_action_execution_policy(
     target_repository_name: str,
     approval: ActionApproval | None,
     execution_enabled: bool,
+    executor_ready: bool,
     allowed_repository_owner: str,
     allowed_repository_name: str,
 ) -> ActionPolicyResult:
@@ -48,7 +49,7 @@ def evaluate_action_execution_policy(
     Policy ALLOW means only that server policy would permit a future execution
     attempt. It is not GitHub success, TechnicalDebt closure, or Human Validation.
     """
-    if not execution_enabled:
+    if not execution_enabled or not executor_ready:
         return ActionPolicyResult(
             decision=ActionPolicyOutcome.DENY,
             rule_id="execution_enabled",
@@ -96,6 +97,7 @@ def record_action_execution_policy_decision(
     approval: ActionApproval | None,
     allowed_target: ActionPreparationContext,
     execution_enabled: bool,
+    executor_ready: bool,
     *,
     clock: Callable[[], datetime] | None = None,
     new_id: Callable[[], UUID] | None = None,
@@ -114,6 +116,7 @@ def record_action_execution_policy_decision(
         target_repository_name=proposal.target_repository_name,
         approval=approval,
         execution_enabled=execution_enabled,
+        executor_ready=executor_ready,
         allowed_repository_owner=allowed_target.target_repository_owner,
         allowed_repository_name=allowed_target.target_repository_name,
     )
@@ -137,6 +140,7 @@ def evaluate_persisted_action_execution_policy(
     action_proposal_id: UUID,
     allowed_target: ActionPreparationContext,
     execution_enabled: bool,
+    executor_ready: bool,
     *,
     clock: Callable[[], datetime] | None = None,
     new_id: Callable[[], UUID] | None = None,
@@ -156,6 +160,7 @@ def evaluate_persisted_action_execution_policy(
         approval,
         allowed_target,
         execution_enabled,
+        executor_ready=executor_ready,
         clock=clock,
         new_id=new_id,
     )

@@ -17,10 +17,16 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.actions.approval import approve_action_proposal
+from app.actions.github_issue_executor import (
+    CreateGitHubIssueCommand,
+    GitHubIssueExecutorOutcome,
+    GitHubIssueExecutorResult,
+)
 from app.api.dependencies import (
     ACTION_APPROVAL_UNAVAILABLE_DETAIL,
     get_action_approval_session,
     get_database_session,
+    get_github_issue_executor,
 )
 from app.api.v1 import technical_debts as technical_debts_module
 from app.core.config import settings
@@ -32,6 +38,8 @@ from app.domain.signals import Evidence, Signal
 from app.governance.contracts import HumanActorContext, HumanValidationCommand
 from app.governance.human_validation import apply_human_validation
 from app.infrastructure.database.action_approval_models import ActionApprovalModel
+from app.infrastructure.database.action_execution_models import ActionExecutionModel
+from app.infrastructure.database.action_policy_models import ActionPolicyDecisionModel
 from app.infrastructure.database.action_proposal_models import ActionProposalModel
 from app.infrastructure.database.candidate_models import CandidateModel
 from app.infrastructure.database.candidate_persistence import persist_candidate
@@ -197,6 +205,30 @@ def _approve_path(technical_debt_id: UUID, action_proposal_id: str) -> str:
     )
 
 
+def _execution_path(technical_debt_id: UUID, action_proposal_id: str) -> str:
+    return (
+        f"{API_PATH}/{technical_debt_id}/action-proposals/"
+        f"{action_proposal_id}/executions"
+    )
+
+
+class _ApiFakeExecutor:
+    def __init__(self) -> None:
+        self.commands: list[CreateGitHubIssueCommand] = []
+
+    def create_issue(
+        self,
+        command: CreateGitHubIssueCommand,
+    ) -> GitHubIssueExecutorResult:
+        self.commands.append(command)
+        return GitHubIssueExecutorResult(
+            outcome=GitHubIssueExecutorOutcome.CREATED,
+            external_issue_id=9001,
+            external_issue_number=42,
+            external_issue_url="https://github.example/issues/42",
+        )
+
+
 def _approval_count(engine: Engine) -> int:
     with Session(engine) as session:
         count = session.scalar(select(func.count()).select_from(ActionApprovalModel))
@@ -295,7 +327,7 @@ def test_competing_proposal_approval_is_409(
     assert _approval_count(database_engine) == 1
 
 
-def test_detail_projects_approvals_without_invented_execution(
+def test_detail_projects_approvals_with_empty_execution_history(
     client: TestClient,
     database_engine: Engine,
 ) -> None:
@@ -321,7 +353,8 @@ def test_detail_projects_approvals_without_invented_execution(
     )
     assert body["lifecycle_status"] == "REGISTERED"
     serialized = str(body).lower()
-    assert "execution" not in serialized
+    assert body["action_executions"] == []
+    assert "verification" not in serialized
     assert "verification" not in serialized
     assert "github_token" not in serialized
     assert "approved" not in serialized
@@ -523,7 +556,7 @@ def test_approve_does_not_invoke_github_or_http(
     assert response.status_code == 201
 
 
-def test_approval_api_has_no_github_write_token_or_executor() -> None:
+def test_approval_api_does_not_own_github_transport_or_token() -> None:
     source_path = Path(inspect.getsourcefile(technical_debts_module) or "")
     text = source_path.read_text(encoding="utf-8")
     module = ast.parse(text, filename=str(source_path))
@@ -545,9 +578,109 @@ def test_approval_api_has_no_github_write_token_or_executor() -> None:
     )
     assert "GITHUB_TOKEN" not in text
     assert "github_token" not in text
-    assert "ActionExecution" not in text
+    assert "Authorization" not in text
     assert "Verification" not in text
     assert "evaluate_candidate_tool_policy" not in text
+
+
+def test_execution_api_persists_policy_deny_without_approval(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    technical_debt_id = _register_technical_debt(database_engine, suffix=31)
+    proposal = _prepare(client, technical_debt_id)
+
+    response = client.post(
+        _execution_path(technical_debt_id, proposal["action_proposal_id"])
+    )
+
+    assert response.status_code == 403
+    with Session(database_engine) as session:
+        assert session.scalar(
+            select(func.count()).select_from(ActionPolicyDecisionModel)
+        ) == 1
+        assert session.scalar(
+            select(func.count()).select_from(ActionExecutionModel)
+        ) == 0
+
+
+def test_execution_api_missing_token_denies_approved_proposal(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    technical_debt_id = _register_technical_debt(database_engine, suffix=32)
+    proposal = _prepare(client, technical_debt_id)
+    approval = client.post(
+        _approve_path(technical_debt_id, proposal["action_proposal_id"]),
+        json={"expected_payload_fingerprint": proposal["payload_fingerprint"]},
+    )
+    assert approval.status_code == 201
+
+    response = client.post(
+        _execution_path(technical_debt_id, proposal["action_proposal_id"])
+    )
+
+    assert response.status_code == 403
+    with Session(database_engine) as session:
+        decision = session.scalar(select(ActionPolicyDecisionModel))
+        assert decision is not None
+        assert decision.reason_code == "EXECUTION_DISABLED"
+
+
+def test_execution_api_creates_once_then_returns_existing(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    technical_debt_id = _register_technical_debt(database_engine, suffix=33)
+    proposal = _prepare(client, technical_debt_id)
+    approval = client.post(
+        _approve_path(technical_debt_id, proposal["action_proposal_id"]),
+        json={"expected_payload_fingerprint": proposal["payload_fingerprint"]},
+    )
+    assert approval.status_code == 201
+    executor = _ApiFakeExecutor()
+    app.dependency_overrides[get_github_issue_executor] = lambda: executor
+
+    first = client.post(
+        _execution_path(technical_debt_id, proposal["action_proposal_id"])
+    )
+    duplicate = client.post(
+        _execution_path(technical_debt_id, proposal["action_proposal_id"])
+    )
+
+    assert first.status_code == 201
+    assert first.json()["status"] == "SUCCEEDED"
+    assert duplicate.status_code == 200
+    assert duplicate.json() == first.json()
+    assert executor.commands == [
+        CreateGitHubIssueCommand(
+            owner=TARGET_OWNER,
+            repository=TARGET_NAME,
+            title=proposal["title"],
+            body=proposal["body"],
+        )
+    ]
+
+
+def test_execution_api_rejects_any_client_mutation_body(
+    client: TestClient,
+    database_engine: Engine,
+) -> None:
+    technical_debt_id = _register_technical_debt(database_engine, suffix=34)
+    proposal = _prepare(client, technical_debt_id)
+
+    response = client.post(
+        _execution_path(technical_debt_id, proposal["action_proposal_id"]),
+        json={
+            "repository": "attacker/repository",
+            "title": "injected",
+            "body": "injected",
+            "status": "SUCCEEDED",
+            "token": "secret",
+        },
+    )
+
+    assert response.status_code == 422
 
 
 def test_github_read_connector_remains_get_only() -> None:

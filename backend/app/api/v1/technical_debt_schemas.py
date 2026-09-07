@@ -5,6 +5,11 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.v1.candidate_schemas import CanonicalAssetResponse
 from app.domain.action_approvals import ActionApproval
+from app.domain.action_executions import (
+    ActionExecution,
+    ActionExecutionErrorCategory,
+    ActionExecutionStatus,
+)
 from app.domain.action_proposals import ActionProposal, ActionType
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
@@ -82,6 +87,21 @@ class ActionApprovalResponse(TechnicalDebtApiModel):
     created_at: datetime
 
 
+class ActionExecutionResponse(TechnicalDebtApiModel):
+    action_execution_id: UUID
+    action_proposal_id: UUID
+    technical_debt_id: UUID
+    action_type: ActionType
+    creation_policy_decision_id: UUID
+    status: ActionExecutionStatus
+    external_issue_id: int | None
+    external_issue_number: int | None
+    external_issue_url: str | None
+    safe_error_category: ActionExecutionErrorCategory | None
+    started_at: datetime
+    completed_at: datetime | None
+
+
 class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     technical_debt_id: UUID
     lifecycle_status: TechnicalDebtLifecycleStatus
@@ -90,6 +110,7 @@ class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     creation_human_decision: TechnicalDebtCreationDecisionResponse
     action_proposals: list[ActionProposalResponse]
     action_approvals: list[ActionApprovalResponse]
+    action_executions: list[ActionExecutionResponse]
 
 
 def technical_debt_list_response(
@@ -129,6 +150,10 @@ def technical_debt_detail_response(
         action_approvals=[
             action_approval_response(approval) for approval in detail.action_approvals
         ],
+        action_executions=[
+            action_execution_response(execution)
+            for execution in detail.action_executions
+        ],
     )
 
 
@@ -155,6 +180,23 @@ def action_approval_response(approval: ActionApproval) -> ActionApprovalResponse
         payload_fingerprint=approval.payload_fingerprint,
         actor_reference=approval.actor_reference,
         created_at=approval.created_at,
+    )
+
+
+def action_execution_response(execution: ActionExecution) -> ActionExecutionResponse:
+    return ActionExecutionResponse(
+        action_execution_id=execution.action_execution_id,
+        action_proposal_id=execution.action_proposal_id,
+        technical_debt_id=execution.technical_debt_id,
+        action_type=execution.action_type,
+        creation_policy_decision_id=execution.creation_policy_decision_id,
+        status=execution.status,
+        external_issue_id=execution.external_issue_id,
+        external_issue_number=execution.external_issue_number,
+        external_issue_url=execution.external_issue_url,
+        safe_error_category=execution.safe_error_category,
+        started_at=execution.started_at,
+        completed_at=execution.completed_at,
     )
 
 

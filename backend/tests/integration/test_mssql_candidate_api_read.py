@@ -72,7 +72,7 @@ def test_mssql_candidate_api_read_boundary_is_exact_and_deterministic() -> None:
                     MigrationContext.configure(
                         session.connection()
                     ).get_current_revision()
-                    == "20260831_01"
+                    == "20260907_03"
                 )
                 seed_enterprise_estate(session)
                 source_prefix = str(uuid4())

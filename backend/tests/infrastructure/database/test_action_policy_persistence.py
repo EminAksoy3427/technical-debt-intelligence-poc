@@ -195,6 +195,7 @@ def test_missing_approval_records_deny(database_engine: Engine) -> None:
             None,
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -215,6 +216,7 @@ def test_allow_records_when_trusted_conditions_hold(database_engine: Engine) -> 
             _approval(),
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -237,6 +239,7 @@ def test_execution_disabled_records_deny_even_with_approval(
             _approval(),
             ALLOWED,
             False,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -259,6 +262,7 @@ def test_repository_mismatch_records_deny(database_engine: Engine) -> None:
             _approval(),
             other_target,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -284,6 +288,7 @@ def test_fingerprint_mismatch_records_deny(database_engine: Engine) -> None:
             mismatched,
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -302,6 +307,7 @@ def test_multiple_policy_evaluations_are_append_only(database_engine: Engine) ->
             None,
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
             new_id=lambda: UUID("00000000-0000-0000-0000-000000000701"),
         )
@@ -312,6 +318,7 @@ def test_multiple_policy_evaluations_are_append_only(database_engine: Engine) ->
             _approval(),
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
             new_id=lambda: UUID("00000000-0000-0000-0000-000000000702"),
         )
@@ -343,6 +350,7 @@ def test_persisted_evaluator_loads_server_owned_facts(database_engine: Engine) -
             PROPOSAL_ID,
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         session.commit()
@@ -367,6 +375,7 @@ def test_policy_helper_does_not_commit(database_engine: Engine) -> None:
             None,
             ALLOWED,
             True,
+            executor_ready=True,
             clock=lambda: CREATED_AT,
         )
         assert committed is False

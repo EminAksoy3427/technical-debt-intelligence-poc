@@ -1,5 +1,5 @@
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from app.core.config import AgentProviderName, Settings
 
@@ -192,6 +192,37 @@ def test_github_settings_have_no_token_and_safe_repr(
     assert "authorization" not in rendered
     assert "gho_" not in rendered
     assert "ghp_" not in rendered
+
+
+def test_github_issue_executor_token_is_optional_secret_and_repr_safe() -> None:
+    secret = "test-github-executor-secret"
+
+    app_settings = Settings(
+        _env_file=None,
+        github_issue_executor_token=secret,
+    )
+
+    assert isinstance(app_settings.github_issue_executor_token, SecretStr)
+    assert secret not in repr(app_settings)
+    assert "**********" in repr(app_settings)
+
+
+@pytest.mark.parametrize(
+    "field_name",
+    (
+        "github_issue_executor_connect_timeout_seconds",
+        "github_issue_executor_request_timeout_seconds",
+    ),
+)
+@pytest.mark.parametrize("value", (0, 121))
+def test_github_issue_executor_timeouts_are_positive_and_bounded(
+    field_name: str,
+    value: int,
+) -> None:
+    if field_name.endswith("connect_timeout_seconds") and value == 121:
+        value = 61
+    with pytest.raises(ValidationError):
+        Settings(_env_file=None, **{field_name: value})
 
 
 def test_deterministic_provider_requires_no_openai_configuration(
