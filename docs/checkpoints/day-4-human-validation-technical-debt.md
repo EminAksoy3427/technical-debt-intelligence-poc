@@ -4,7 +4,9 @@ Baseline before this documentation package: **49e47ce**
 (`49e47ce06693f27996eea905df6bf42ded994124`).
 
 This checkpoint records Day 4 implementation through frontend. It adds no
-product capability.
+product capability. Day 5 later implemented the governed action plane; see
+[the Day 5 checkpoint](day-5-governed-action-execution.md). The remainder of
+this document is the Day 4 acceptance record.
 
 ## A. Baseline / final implementation commit
 

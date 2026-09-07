@@ -1,6 +1,6 @@
 # API contract — current implementation
 
-Baseline: 6 September 2026, Day 4. Application resources use `/api/v1` by default
+Baseline: 7 September 2026, Day 5. Application resources use `/api/v1` by default
 (`Settings.api_v1_prefix`). The current Nuxt client calls that prefix explicitly.
 
 ## Executable contract
@@ -34,6 +34,10 @@ automatic client generation is not claimed.
 | `GET /api/v1/candidates/{candidate_id}/agent-runs/{agent_run_id}` | Read one persisted Candidate-scoped `AgentRunResponse` aggregate |
 | `GET /api/v1/technical-debts` | Read REGISTERED TechnicalDebt summaries as `TechnicalDebtListResponse`: `items` and `count` |
 | `GET /api/v1/technical-debts/{technical_debt_id}` | Read one TechnicalDebt by UUID as `TechnicalDebtDetailResponse` |
+| `POST /api/v1/technical-debts/{technical_debt_id}/action-proposals` | Prepare one immutable `CREATE_GITHUB_ISSUE` ActionProposal; HTTP 201 `ActionProposalResponse`; no request body |
+| `POST /api/v1/technical-debts/{technical_debt_id}/action-proposals/{action_proposal_id}/approvals` | Record one L4 ActionApproval; HTTP 201 `ActionApprovalResponse`; body is `expected_payload_fingerprint` only |
+| `POST /api/v1/technical-debts/{technical_debt_id}/action-proposals/{action_proposal_id}/executions` | Claim/execute one ActionProposal; HTTP 201 `ActionExecutionResponse` on create, HTTP 200 on existing same-proposal execution; no request body |
+| `POST /api/v1/technical-debts/{technical_debt_id}/action-proposals/{action_proposal_id}/executions/{action_execution_id}/verifications` | Verify one ActionExecution; HTTP 201 `ActionVerificationResponse`; no request body |
 | `GET /api/v1/connectors` | Read registered connector inventory as `ConnectorListResponse`: `items` and `count` |
 
 The Candidate list includes Candidate identity/hypothesis, canonical asset, enterprise
@@ -82,10 +86,38 @@ There is no silent idempotency. A duplicate or stale command is a conflict.
 
 List items expose TechnicalDebt identity, `REGISTERED` status, created time,
 source Candidate identity, hypothesis, and canonical asset. Detail adds source
-Candidate rationale and the creation VALIDATE HumanDecision. Evidence remains
-owned and read through Candidate provenance. These routes do not invent risk,
-effort, owner, priority, target date, remediation plan, verification, or
-closure.
+Candidate rationale, the creation VALIDATE HumanDecision, and governed action
+collections:
+
+- `action_proposals`
+- `action_approvals`
+- `action_policy_decisions`
+- `action_executions`
+- `action_verifications`
+
+Evidence remains owned and read through Candidate provenance. These routes do
+not invent risk, effort, owner, priority, target date, remediation plan, or
+closure. Verification collections are not TechnicalDebt closure.
+
+### Governed action commands
+
+Preparation, execution, and verification accept **no request body**. A supplied
+body is HTTP 422 (`Request body is not supported`). Approval accepts only:
+
+```text
+{"expected_payload_fingerprint": "<64-char lowercase SHA-256 hex>"}
+```
+
+`additionalProperties` is false. The client cannot submit actor, repository,
+title, body, action type, token, policy decision, or execution status.
+
+Preparation is server-owned. Target repository, title, body, fingerprint,
+reconciliation marker, and `prepared_by` come from trusted settings and
+persisted TechnicalDebt/Candidate facts.
+
+`HUMAN_GOVERNANCE_ENABLED` does not enable L4. L4 approval requires
+`HUMAN_ACTION_EXECUTION_ENABLED`. Action Execution Policy still evaluates
+execution enabled and executor readiness before any GitHub POST.
 
 `GET /api/v1/connectors` returns descriptor metadata from the in-code Connector
 Registry. Each item exposes `connector_id`, `display_name`, `version`,
@@ -108,12 +140,45 @@ Route-specific behavior currently implemented:
   `HUMAN_GOVERNANCE_ACTOR_REFERENCE`. Invalid enabled configuration is a
   configuration/startup validation issue, not a normal HTTP 403 route
   outcome.
+- ActionProposal preparation success: HTTP 201.
+- ActionProposal preparation when actor or target repository is unconfigured:
+  HTTP 503, `{"detail":"Action preparation is unavailable because the server is not configured"}`.
+- TechnicalDebt not REGISTERED: HTTP 409,
+  `{"detail":"TechnicalDebt is not REGISTERED"}`.
+- ActionApproval success: HTTP 201.
+- L4 approval disabled (`HUMAN_ACTION_EXECUTION_ENABLED=false`): HTTP 403,
+  `{"detail":"Action approval is not available"}`.
+- L4 approval enabled but actor missing: HTTP 503,
+  `{"detail":"Action approval is not available"}`.
+- Stale `expected_payload_fingerprint`: HTTP 409.
+- ActionProposal already approved: HTTP 409.
+- Competing logical approval: HTTP 409.
+- ActionExecution create success: HTTP 201.
+- Same-proposal execution already exists: HTTP 200 with the persisted
+  ActionExecution; no second GitHub POST.
+- Action execution policy DENY: HTTP 403,
+  `{"detail":"Action execution policy denied this proposal"}`.
+  The DENY ActionPolicyDecision is persisted. Zero external execution occurs.
+- Logical action occupancy conflict: HTTP 409,
+  `{"detail":"Another proposal occupies this logical external action"}`.
+- ActionVerification success: HTTP 201, including `PASS`, `FAIL`, and
+  `UNAVAILABLE` results.
+- ActionExecution not verifiable (`FAILED`): HTTP 409,
+  `{"detail":"ActionExecution is not verifiable"}`.
+- Marker search unresolved or ambiguous: HTTP 409 with the typed reconciliation
+  message. `UNKNOWN` is not rewritten to `FAILED`.
+- Verification plane unavailable (no verifier or target mismatch): HTTP 403,
+  `{"detail":"Action verification is not available"}`.
 - Unknown Candidate UUID: HTTP 404, `{"detail":"Candidate not found"}`.
 - Unknown TechnicalDebt UUID: HTTP 404, `{"detail":"TechnicalDebt not found"}`.
+- Unknown ActionProposal for the path TechnicalDebt: HTTP 404,
+  `{"detail":"ActionProposal not found"}`.
+- Unknown ActionExecution for the path proposal: HTTP 404,
+  `{"detail":"ActionExecution not found"}`.
 - Stale expected revision, illegal transition, or recognized governance
   uniqueness conflict: HTTP 409 with the typed error message.
-- Malformed UUID, extra request fields, or invalid Human Validation content:
-  HTTP 422.
+- Malformed UUID, extra request fields, invalid Human Validation content, or
+  unsupported action request body: HTTP 422.
 - Detected Candidate read-integrity failures: HTTP 500,
   `{"detail":"Persisted Candidate data failed integrity validation"}`.
 - Detected TechnicalDebt read-integrity failures: HTTP 500,
@@ -137,12 +202,16 @@ but never executes them.
 AgentRun responses expose run state and timestamps, Structured Assessment,
 ordered safe ToolExecution fields and ordered PolicyDecision audit facts. They
 omit raw tool payloads, input hashes/summaries, raw prompts/provider responses,
-hidden reasoning, settings, credentials and connection information. Policy
-ALLOW/DENY records deterministic runtime policy, not human approval.
+hidden reasoning, settings, credentials and connection information. Agent Tool
+Policy ALLOW/DENY records deterministic runtime policy, not human approval and
+not L4 Action Execution Policy.
 
 See `backend/tests/api/test_candidate_api.py`,
 `backend/tests/api/test_human_decision_api.py`,
 `backend/tests/api/test_technical_debt_api.py`,
+`backend/tests/api/test_action_proposal_api.py`,
+`backend/tests/api/test_action_approval_api.py`,
+`backend/tests/api/test_action_verification_api.py`,
 `backend/tests/api/test_human_actor_context.py`, and
 `backend/tests/api/test_connector_api.py` for executable behavior.
 
@@ -171,39 +240,48 @@ and atomically creates exactly one REGISTERED TechnicalDebt. `REJECT` and
 Signals are not deleted. REGISTERED is not remediation approval, scheduled
 work, or resolution.
 
+ActionProposal is not authorization. ActionApproval is not policy ALLOW.
+Policy ALLOW is not successful GitHub execution. Execution success is not
+verification. Verification is not TechnicalDebt closure. `UNKNOWN` is not
+`FAILED`. GitHub READ connector inventory is not the executor.
+
 Human Governance is disabled by default. When enabled, `actor_reference` is
 server-owned opaque audit attribution. This is not OAuth, ADFS, SSO, JWT
 enterprise identity, or reviewer RBAC. The configured actor is not a verified
-employee.
+employee. The same attribution seam is reused for ActionProposal `prepared_by`
+and ActionApproval `actor_reference` when those routes are configured.
+`HUMAN_GOVERNANCE_ENABLED` still does not grant L4.
 
 Registered is not healthy. Connector inventory is composition metadata, not a
 runtime health dashboard and not proof of successful acquisition.
 
 The Candidate and TechnicalDebt routers delegate database work to infrastructure
 persistence and composition functions; they do not issue SQL themselves.
-`candidate_schemas` also maps infrastructure DTOs. Human Validation uses a
-transaction-free Session so `apply_human_validation` can own BEGIN / COMMIT /
-ROLLBACK. Connector listing reads registry descriptors only and does
-not use the database. These are known current dependencies, not a completed
+`candidate_schemas` also maps infrastructure DTOs. Human Validation and
+governed action services use a transaction-free Session so each service can own
+BEGIN / COMMIT / ROLLBACK. Connector listing reads registry descriptors only and
+does not use the database. These are known current dependencies, not a completed
 application-port boundary. See the [architecture overview](architecture/overview.md)
 and [domain invariants](domain/invariants.md).
 
 Browser access uses settings-backed `CORS_ALLOWED_ORIGINS`, with
 GET/HEAD/OPTIONS/POST, Accept/Content-Type headers and no CORS credentials.
 CORS configuration does not implement
-lifecycle authorization. Candidate, Human Validation, and TechnicalDebt routes
-need configured database access; health, OpenAPI, and connector inventory do not.
+lifecycle authorization. Candidate, Human Validation, TechnicalDebt, and
+governed action routes need configured database access; health, OpenAPI, and
+connector inventory do not.
 
 ## Contract verification
 
 From `backend`, with development dependencies installed:
 
 ```text
-python -m pytest tests/api/test_agent_run_api.py tests/api/test_openapi_contract.py tests/api/test_candidate_api.py tests/api/test_human_decision_api.py tests/api/test_technical_debt_api.py tests/api/test_human_actor_context.py tests/api/test_connector_api.py tests/test_health.py
+python -m pytest tests/api/test_agent_run_api.py tests/api/test_openapi_contract.py tests/api/test_candidate_api.py tests/api/test_human_decision_api.py tests/api/test_technical_debt_api.py tests/api/test_action_proposal_api.py tests/api/test_action_approval_api.py tests/api/test_action_verification_api.py tests/api/test_human_actor_context.py tests/api/test_connector_api.py tests/test_health.py
 ```
 
 These tests verify HTTP/OpenAPI behavior using an isolated in-memory SQLite
-fixture for Candidate reads, Human Validation writes, TechnicalDebt reads, and
-AgentRun execution; they do not require a live MSSQL database and do not prove
-MSSQL concurrency.
+fixture for Candidate reads, Human Validation writes, TechnicalDebt reads,
+governed action commands, and AgentRun execution; they do not require a live
+MSSQL database and do not prove MSSQL concurrency.
 Connector inventory tests do not require a database or GitHub network access.
+They do not perform a real GitHub write.

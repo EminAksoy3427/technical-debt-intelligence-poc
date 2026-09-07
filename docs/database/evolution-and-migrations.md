@@ -44,6 +44,12 @@ read, validate, write, and COMMIT or ROLLBACK. Persistence helpers
 `persist_human_decision` and `persist_technical_debt` flush; they do not
 commit. This is distinct from AgentRun audit checkpoint commits.
 
+Governed action services likewise own their transactions. Execution and
+verification never hold a database transaction across external HTTP. Persistence
+helpers for ActionProposal, ActionApproval, ActionPolicyDecision,
+ActionExecution, and ActionVerification flush; they do not commit. Secrets are
+not persisted on those tables.
+
 ## Current schema inventory
 
 Application tables:
@@ -62,6 +68,11 @@ Application tables:
 - `policy_decisions`
 - `human_decisions`
 - `technical_debts`
+- `action_proposals`
+- `action_approvals`
+- `action_policy_decisions`
+- `action_executions`
+- `action_verifications`
 
 Also present at runtime after Alembic has run:
 
@@ -107,6 +118,14 @@ erDiagram
     candidates ||--o{ human_decisions : decisions
     candidates ||--o| technical_debts : registered
     human_decisions ||--o| technical_debts : creation
+    technical_debts ||--o{ action_proposals : proposals
+    action_proposals ||--o| action_approvals : approval
+    action_proposals ||--o{ action_policy_decisions : policy
+    action_approvals ||--o{ action_policy_decisions : referenced
+    technical_debts ||--o{ action_executions : executions
+    action_proposals ||--o| action_executions : attempt
+    action_policy_decisions ||--o{ action_executions : creation_policy
+    action_executions ||--o{ action_verifications : verifications
 
     enterprise_assets {
         int id PK
@@ -220,6 +239,58 @@ erDiagram
         string lifecycle_status
         datetime created_at
     }
+    action_proposals {
+        uuid action_proposal_id PK
+        uuid technical_debt_id FK
+        string action_type
+        string target_repository_owner
+        string target_repository_name
+        string title
+        string body
+        string payload_fingerprint
+        string reconciliation_marker UK
+        string prepared_by
+        datetime created_at
+    }
+    action_approvals {
+        uuid action_approval_id PK
+        uuid action_proposal_id FK, UK
+        string payload_fingerprint
+        string actor_reference
+        datetime created_at
+    }
+    action_policy_decisions {
+        uuid action_policy_decision_id PK
+        uuid action_proposal_id FK
+        uuid action_approval_id FK
+        string decision
+        string rule_id
+        string reason_code
+        datetime created_at
+    }
+    action_executions {
+        uuid action_execution_id PK
+        uuid action_proposal_id FK, UK
+        uuid technical_debt_id FK
+        string action_type
+        uuid creation_policy_decision_id FK
+        string status
+        int external_issue_id
+        int external_issue_number
+        string external_issue_url
+        string safe_error_category
+        datetime started_at
+        datetime completed_at
+    }
+    action_verifications {
+        uuid action_verification_id PK
+        uuid action_execution_id FK
+        string result
+        int observed_issue_number
+        string observed_issue_url
+        string safe_reason_code
+        datetime created_at
+    }
 ```
 
 Notes that match the ORM:
@@ -247,16 +318,35 @@ Notes that match the ORM:
   each unique. Current `lifecycle_status` is only `REGISTERED`.
 - Candidates were not given status or revision columns. Governance state and
   revision are derived from HumanDecision history.
+- ActionProposals are append-only immutable previews. Multiple rows per
+  TechnicalDebt are allowed. `reconciliation_marker` is unique.
+  `action_type` is currently only `CREATE_GITHUB_ISSUE`.
+- ActionApprovals are append-only. One approval per ActionProposal
+  (`uq_action_approvals_action_proposal_id`). Competing CREATE occupancy is
+  enforced in application code and excludes approvals whose execution is
+  `FAILED`.
+- ActionPolicyDecisions are append-only. ALLOW requires a non-null
+  `action_approval_id`. Reason codes are constrained in-table.
+- ActionExecutions are one row per ActionProposal
+  (`uq_action_executions_action_proposal_id`). Live logical occupancy uses a
+  filtered unique index `uq_action_executions_live_logical_action` on
+  `(technical_debt_id, action_type)` where status is `IN_PROGRESS`,
+  `SUCCEEDED`, or `UNKNOWN`. `FAILED` is excluded, so a later proposal may
+  occupy the slot. This is MSSQL filtered-index semantics via Alembic
+  `mssql_where` (SQLite tests use `sqlite_where`). It is not PostgreSQL.
+- ActionVerifications are append-only. Multiple verifications per execution
+  are allowed. Raw GitHub responses and secrets are not stored.
 
 ## Migration history
 
 Exact current chain, single head, no branching:
 
 ```text
-20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01 → 20260906_01
+20260826_01 → 20260827_01 → 20260828_01 → 20260831_01 → 20260905_01
+  → 20260906_01 → 20260907_01 → 20260907_02 → 20260907_03 → 20260907_04
 ```
 
-Current head: **`20260906_01`**.
+Current head: **`20260907_04`**.
 
 | Revision | Purpose |
 | --- | --- |
@@ -266,6 +356,10 @@ Current head: **`20260906_01`**.
 | `20260831_01` | candidates + `candidate_signals` |
 | `20260905_01` | AgentRun, ToolExecution, and PolicyDecision audit persistence |
 | `20260906_01` | HumanDecision history and REGISTERED TechnicalDebt |
+| `20260907_01` | immutable ActionProposal persistence |
+| `20260907_02` | append-only ActionApproval and ActionPolicyDecision |
+| `20260907_03` | ActionExecution plus filtered live logical uniqueness |
+| `20260907_04` | append-only ActionVerification |
 
 This inventory describes repository revisions. It does not assert the applied
 revision of any live database until that database is inspected.
@@ -338,21 +432,25 @@ Do not always downgrade. Full production rollback automation does not exist.
 
 ## Migration verification coverage
 
-Statuses below are honest against currently inspected evidence, including the
-Package 3 migration compilation and configured-MSSQL integration run.
+Statuses below are honest against currently inspected evidence, including Day 4
+Package 3 MSSQL governance proof and Day 5 package-stage MSSQL action tests.
+This documentation package did not re-run live MSSQL.
 
 | Claim | Status | Evidence |
 | --- | --- | --- |
-| Single head | **PROVEN** | Alembic script directory; `20260906_01` is the only head; predecessor is `20260905_01` |
-| Clean DB → head | **PARTIALLY PROVEN** | live MSSQL upgrade-to-head exists; a guaranteed empty-database bootstrap is not a dedicated proven path |
-| Existing DB → head | **PARTIALLY PROVEN** | the configured MSSQL database successfully ran `upgrade head` and exposed the new schema; its starting revision was not separately captured |
+| Single head | **PROVEN** | Alembic script directory; `20260907_04` is the only head; predecessor is `20260907_03` |
+| Clean DB → head | **PARTIALLY PROVEN** | live MSSQL upgrade-to-head exists in later integration tests; a guaranteed empty-database bootstrap is not a dedicated proven path |
+| Existing DB → head | **PARTIALLY PROVEN** | configured MSSQL upgrade-to-head exists in Day 4/Day 5 integration tests; starting revision is not always separately captured |
 | Live downgrade | **NOT PROVEN** | downgrade SQL is compiled in-process (`as_sql`); no live MSSQL downgrade test was found |
 | Upgrade after downgrade | **NOT PROVEN** | no round-trip test exists |
 | ORM/schema correspondence | **PARTIALLY PROVEN** | ORM metadata, Alembic `env.py` imports, compiled MSSQL CREATE TABLE SQL, and live table/FK/uniqueness inspection are checked; complete live column/constraint parity is not proven |
-| Actual MSSQL migration | **PROVEN for Day 3 audit persistence and Day 4 governance tables** | earlier audit integration plus Day 4 Package 3 MSSQL tests upgraded configured MSSQL to `20260906_01` and inspected `human_decisions` / `technical_debts` FKs and uniqueness |
+| Actual MSSQL migration | **PROVEN for Day 3–5 tables in package-stage integration tests** | Day 4 governance tests plus Day 5 `test_mssql_action_proposal_persistence.py`, `test_mssql_action_approval_persistence.py`, `test_mssql_action_execution_persistence.py`, and `test_mssql_action_verification_persistence.py` inspect schema through `20260907_04` |
 | Same-Candidate MSSQL concurrency | **PROVEN for concurrent same-revision VALIDATE** | `test_mssql_serializes_same_revision_commands_and_creates_one_technical_debt` used `UPDLOCK`/`HOLDLOCK`; one winner, one stale conflict, one decision #1, exactly one TechnicalDebt. SQLite does not prove this |
+| Live logical action uniqueness | **PROVEN in Day 5 MSSQL execution tests** | filtered unique index on `(technical_debt_id, action_type)` for `IN_PROGRESS` / `SUCCEEDED` / `UNKNOWN`; concurrent same-proposal POST once; concurrent different proposals one winner |
+| UNKNOWN reconciliation | **PROVEN in Day 5 MSSQL verification tests** | concurrent UNKNOWN reconcile remains safe; verifier is GET-only |
 
-Do not improve these claims without adding or running new proof.
+Do not improve these claims without adding or running new proof. These MSSQL
+tests use fake executors/verifiers. They do not perform a real GitHub write.
 
 ## Safe MSSQL configuration
 

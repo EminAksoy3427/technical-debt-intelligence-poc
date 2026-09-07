@@ -59,9 +59,11 @@ maintenance cost, so introduce them only where an implemented slice needs them.
 No new production topology, executable policy system or agent capability is
 claimed by this decision.
 
-Future L4 execution must follow agent preparation, human approval, policy checks,
+Future L4 execution must follow preparation, human approval, policy checks,
 executor execution, result verification and persisted audit. Assessment is not
-authorization, and verification is not closure. This flow is not implemented.
+authorization, and verification is not closure. Day 5 implemented the first
+`CREATE_GITHUB_ISSUE` vertical slice with server-owned L3 preparation rather
+than an Agent WRITE tool. The Option B decision is unchanged.
 
 ## Known gaps
 
@@ -69,8 +71,9 @@ The remaining non-blocking baseline gaps are direct API-to-infrastructure reads,
 infrastructure DTO mapping in `candidate_schemas`, and incident-specific
 recurrence logic in correlation. Explicit connector, SourceObservation,
 functional normalizer, and Connector Registry contracts now exist for registered
-sources. Agent Runtime, Tool Registry, Policy, and an async backbone remain
-future work. Deferred treatment of the remaining gaps is recorded in the
+sources. Candidate-scoped Agent Runtime, Tool Registry, and READ Policy exist
+from later vertical slices. An async backbone remains future work. Deferred
+treatment of remaining gaps is recorded in the
 [overview](../architecture/overview.md).
 
 A missing `candidate_models` import in Alembic metadata assembly was identified
@@ -82,9 +85,11 @@ This ADR authorizes no code or schema fixes in Package 2.
 
 ## Deferred decisions
 
-Exact contract signatures and placement, registry composition details, agent
-runtime/tool/provider choices, policy evaluation and approval implementation,
-Knowledge provider behavior, async transport, TechnicalDebt lifecycle/storage,
-and future navigation are deferred to their respective vertical slices.
+Exact remaining contract signatures and placement, additional registry
+composition details, Knowledge provider behavior, async transport, TechnicalDebt
+lifecycle beyond REGISTERED, additional action types, and future navigation
+remain deferred to their respective vertical slices. Candidate-scoped Agent
+Runtime/READ tools and the first L4 `CREATE_GITHUB_ISSUE` action-plane slice
+were introduced later without changing this Option B decision.
 Service extraction or a runtime marketplace requires new evidence and a later
-decision. This package changes documentation only.
+decision. This ADR package originally changed documentation only.

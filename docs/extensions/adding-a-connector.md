@@ -245,9 +245,17 @@ Current principles:
 
 GitHub currently hard-codes `https://api.github.com` as the trusted origin.
 
-**The current GitHub connector has no token support.** Do not document GitHub
-PAT authentication as existing. The Day 2 proof uses unauthenticated public
-READ.
+**The current GitHub READ connector has no token support.** Do not document
+GitHub PAT authentication as existing on the acquisition connector. The Day 2
+proof uses unauthenticated public READ.
+
+That connector is not the GitHub Issue Executor and not the GitHub Issue
+Verifier. Acquisition (`backend/app/connectors/github_issues.py`) remains
+GET-only SourceObservation collection. Action-plane write and read-back live
+separately under `backend/app/actions` and
+`backend/app/infrastructure/github_issue_executor.py` /
+`github_issue_verifier.py`. See the
+[architecture overview](../architecture/overview.md).
 
 ## Timeout, retry, and errors
 
