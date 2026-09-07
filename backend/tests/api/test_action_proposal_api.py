@@ -58,7 +58,6 @@ BASE_TIME = datetime(2026, 9, 7, 16, 0, tzinfo=UTC)
 FORBIDDEN_FIELDS = (
     "approved",
     "executed",
-    "verification",
     "verified",
     "github_token",
     "risk",
@@ -319,6 +318,7 @@ def test_second_prepare_creates_another_immutable_proposal(
     ) <= datetime.fromisoformat(proposals[1]["created_at"].replace("Z", "+00:00"))
     assert "action_proposals" in detail.json()
     assert detail.json()["lifecycle_status"] == "REGISTERED"
+    assert detail.json()["action_verifications"] == []
     assert "source_candidate" in detail.json()
     assert "creation_human_decision" in detail.json()
     serialized = str(detail.json()).lower()
@@ -432,7 +432,6 @@ def test_action_proposal_api_has_no_github_write_or_token() -> None:
     assert "GITHUB_TOKEN" not in text
     assert "github_token" not in text
     assert "Authorization" not in text
-    assert "Verification" not in text
 
 
 def test_github_read_connector_remains_get_only() -> None:

@@ -354,8 +354,7 @@ def test_detail_projects_approvals_with_empty_execution_history(
     assert body["lifecycle_status"] == "REGISTERED"
     serialized = str(body).lower()
     assert body["action_executions"] == []
-    assert "verification" not in serialized
-    assert "verification" not in serialized
+    assert body["action_verifications"] == []
     assert "github_token" not in serialized
     assert "approved" not in serialized
 
@@ -579,7 +578,6 @@ def test_approval_api_does_not_own_github_transport_or_token() -> None:
     assert "GITHUB_TOKEN" not in text
     assert "github_token" not in text
     assert "Authorization" not in text
-    assert "Verification" not in text
     assert "evaluate_candidate_tool_policy" not in text
 
 

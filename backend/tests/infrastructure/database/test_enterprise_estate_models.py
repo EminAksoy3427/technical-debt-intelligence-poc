@@ -11,8 +11,12 @@ from alembic.script import ScriptDirectory
 from sqlalchemy import CheckConstraint, UniqueConstraint
 
 from app.infrastructure.database.action_approval_models import ActionApprovalModel
+from app.infrastructure.database.action_execution_models import ActionExecutionModel
 from app.infrastructure.database.action_policy_models import ActionPolicyDecisionModel
 from app.infrastructure.database.action_proposal_models import ActionProposalModel
+from app.infrastructure.database.action_verification_models import (
+    ActionVerificationModel,
+)
 from app.infrastructure.database.agent_audit_models import (
     AgentRunModel,
     PolicyDecisionModel,
@@ -52,6 +56,8 @@ EXPECTED_TABLES = {
     "action_proposals",
     "action_approvals",
     "action_policy_decisions",
+    "action_executions",
+    "action_verifications",
 }
 
 
@@ -209,8 +215,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260907_03"
-    assert head.down_revision == "20260907_02"
+    assert head.revision == "20260907_04"
+    assert head.down_revision == "20260907_03"
 
     output = StringIO()
     context = MigrationContext.configure(
@@ -235,6 +241,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert ActionProposalModel.__table__.name == "action_proposals"
     assert ActionApprovalModel.__table__.name == "action_approvals"
     assert ActionPolicyDecisionModel.__table__.name == "action_policy_decisions"
+    assert ActionExecutionModel.__table__.name == "action_executions"
+    assert ActionVerificationModel.__table__.name == "action_verifications"
 
     migration_sql = output.getvalue()
     for table_name in EXPECTED_TABLES:
@@ -251,11 +259,19 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert "DROP TABLE policy_decisions" in downgrade_sql
     assert "DROP TABLE tool_executions" in downgrade_sql
     assert "DROP TABLE agent_runs" in downgrade_sql
+    assert "DROP TABLE action_verifications" in downgrade_sql
+    assert "DROP TABLE action_executions" in downgrade_sql
     assert "DROP TABLE action_policy_decisions" in downgrade_sql
     assert "DROP TABLE action_approvals" in downgrade_sql
     assert "DROP TABLE action_proposals" in downgrade_sql
     assert "DROP TABLE technical_debts" in downgrade_sql
     assert "DROP TABLE human_decisions" in downgrade_sql
+    assert downgrade_sql.index("DROP TABLE action_verifications") < (
+        downgrade_sql.index("DROP TABLE action_executions")
+    )
+    assert downgrade_sql.index("DROP TABLE action_executions") < (
+        downgrade_sql.index("DROP TABLE action_policy_decisions")
+    )
     assert downgrade_sql.index("DROP TABLE action_policy_decisions") < (
         downgrade_sql.index("DROP TABLE action_approvals")
     )

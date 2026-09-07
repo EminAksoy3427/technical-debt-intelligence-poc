@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.domain.action_approvals import ActionApproval
 from app.domain.action_executions import ActionExecution
 from app.domain.action_proposals import ActionProposal
+from app.domain.action_verifications import ActionVerification
 from app.domain.candidates import Candidate
 from app.domain.human_decisions import HumanDecision, HumanDecisionType
 from app.domain.technical_debts import TechnicalDebt
@@ -17,6 +18,9 @@ from app.infrastructure.database.action_execution_persistence import (
 )
 from app.infrastructure.database.action_proposal_persistence import (
     list_action_proposals_for_technical_debt,
+)
+from app.infrastructure.database.action_verification_persistence import (
+    list_action_verifications_for_technical_debt,
 )
 from app.infrastructure.database.candidate_persistence import load_candidate
 from app.infrastructure.database.human_decision_persistence import load_human_decision
@@ -44,6 +48,7 @@ class TechnicalDebtDetail:
     action_proposals: tuple[ActionProposal, ...]
     action_approvals: tuple[ActionApproval, ...]
     action_executions: tuple[ActionExecution, ...]
+    action_verifications: tuple[ActionVerification, ...]
 
 
 def list_technical_debt_summaries(
@@ -131,6 +136,16 @@ def load_technical_debt_detail(
             "Persisted ActionExecution data failed integrity validation"
         ) from error
 
+    try:
+        action_verifications = list_action_verifications_for_technical_debt(
+            session,
+            technical_debt.technical_debt_id,
+        )
+    except ValueError as error:
+        raise TechnicalDebtReadIntegrityError(
+            "Persisted ActionVerification data failed integrity validation"
+        ) from error
+
     return TechnicalDebtDetail(
         technical_debt=technical_debt,
         source_candidate=source_candidate,
@@ -138,6 +153,7 @@ def load_technical_debt_detail(
         action_proposals=action_proposals,
         action_approvals=action_approvals,
         action_executions=action_executions,
+        action_verifications=action_verifications,
     )
 
 

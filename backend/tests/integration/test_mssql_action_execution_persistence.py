@@ -181,7 +181,7 @@ def test_mssql_action_execution_schema_and_filtered_occupancy() -> None:
         with engine.connect() as connection:
             assert (
                 MigrationContext.configure(connection).get_current_revision()
-                == "20260907_03"
+                == "20260907_04"
             )
             filter_definition = connection.execute(
                 text(

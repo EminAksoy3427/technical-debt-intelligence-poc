@@ -59,6 +59,44 @@ def finalize_action_execution(session: Session, execution: ActionExecution) -> N
     session.flush()
 
 
+def reconcile_unknown_execution_success(
+    session: Session,
+    execution: ActionExecution,
+) -> None:
+    """Apply the sole Package 6 UNKNOWN → SUCCEEDED transition after marker proof."""
+    if execution.status is not ActionExecutionStatus.SUCCEEDED:
+        raise ValueError("UNKNOWN reconciliation requires a SUCCEEDED ActionExecution")
+    persisted = session.get(ActionExecutionModel, execution.action_execution_id)
+    if persisted is None:
+        raise ValueError("ActionExecution does not exist")
+    if persisted.status != ActionExecutionStatus.UNKNOWN.value:
+        raise ValueError("Only UNKNOWN ActionExecution may be reconciled to SUCCEEDED")
+    persisted.status = ActionExecutionStatus.SUCCEEDED.value
+    persisted.external_issue_id = execution.external_issue_id
+    persisted.external_issue_number = execution.external_issue_number
+    persisted.external_issue_url = execution.external_issue_url
+    persisted.safe_error_category = None
+    persisted.completed_at = execution.completed_at
+    session.flush()
+
+
+def lock_action_execution(
+    session: Session,
+    action_execution_id: UUID,
+) -> ActionExecution | None:
+    """Load one ActionExecution with MSSQL UPDLOCK, HOLDLOCK on that dialect."""
+    persisted = session.scalar(
+        select(ActionExecutionModel)
+        .where(ActionExecutionModel.action_execution_id == action_execution_id)
+        .with_hint(
+            ActionExecutionModel,
+            "WITH (UPDLOCK, HOLDLOCK)",
+            dialect_name="mssql",
+        )
+    )
+    return None if persisted is None else _execution_contract(persisted)
+
+
 def load_action_execution(
     session: Session,
     action_execution_id: UUID,

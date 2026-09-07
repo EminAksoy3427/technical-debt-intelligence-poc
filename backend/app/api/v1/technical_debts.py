@@ -8,12 +8,17 @@ from sqlalchemy.orm import Session
 from app.actions.approval import approve_action_proposal
 from app.actions.contracts import (
     ActionApprovalPersistenceConflict,
+    ActionExecutionDoesNotBelongToProposal,
+    ActionExecutionNotFound,
+    ActionExecutionNotVerifiable,
+    ActionExecutionReconciliationUnresolved,
     ActionPreparationContext,
     ActionProposalAlreadyApproved,
     ActionProposalDoesNotBelongToTechnicalDebt,
     ActionProposalNotFound,
     ActionProposalPersistenceConflict,
     ActionProposalSourceContextMissing,
+    ActionVerificationUnavailable,
     ApproveActionProposalCommand,
     CompetingActionApprovalExists,
     ExecuteActionProposalCommand,
@@ -23,34 +28,42 @@ from app.actions.contracts import (
     StaleActionProposalFingerprint,
     TechnicalDebtNotFound,
     TechnicalDebtNotRegistered,
+    VerifyActionExecutionCommand,
 )
 from app.actions.execution import (
     ExecuteActionProposalDisposition,
     execute_action_proposal,
 )
 from app.actions.github_issue_executor import GitHubIssueExecutor
+from app.actions.github_issue_verifier import GitHubIssueVerifier
 from app.actions.preparation import prepare_action_proposal
+from app.actions.verification import verify_action_execution
 from app.api.dependencies import (
     ACTION_PREPARATION_UNAVAILABLE_DETAIL,
+    ACTION_VERIFICATION_UNAVAILABLE_DETAIL,
     get_action_approval_actor_context,
     get_action_approval_session,
     get_action_execution_session,
     get_action_preparation_actor_context,
     get_action_preparation_context,
     get_action_preparation_session,
+    get_action_verification_session,
     get_database_session,
     get_github_issue_executor,
+    get_github_issue_verifier,
 )
 from app.api.v1.technical_debt_schemas import (
     ActionApprovalResponse,
     ActionExecutionResponse,
     ActionProposalResponse,
+    ActionVerificationResponse,
     ApproveActionProposalRequest,
     TechnicalDebtDetailResponse,
     TechnicalDebtListResponse,
     action_approval_response,
     action_execution_response,
     action_proposal_response,
+    action_verification_response,
     technical_debt_detail_response,
     technical_debt_list_response,
 )
@@ -68,9 +81,16 @@ DatabaseSession = Annotated[Session, Depends(get_database_session)]
 ActionPreparationSession = Annotated[Session, Depends(get_action_preparation_session)]
 ActionApprovalSession = Annotated[Session, Depends(get_action_approval_session)]
 ActionExecutionSession = Annotated[Session, Depends(get_action_execution_session)]
+ActionVerificationSession = Annotated[
+    Session, Depends(get_action_verification_session)
+]
 ServerGitHubIssueExecutor = Annotated[
     GitHubIssueExecutor | None,
     Depends(get_github_issue_executor),
+]
+ServerGitHubIssueVerifier = Annotated[
+    GitHubIssueVerifier | None,
+    Depends(get_github_issue_verifier),
 ]
 ActionPreparationActor = Annotated[
     HumanActorContext,
@@ -301,3 +321,73 @@ async def create_technical_debt_action_proposal_execution(
         response.status_code = status.HTTP_200_OK
     assert result.execution is not None
     return action_execution_response(result.execution)
+
+
+@router.post(
+    "/{technical_debt_id}/action-proposals/{action_proposal_id}"
+    "/executions/{action_execution_id}/verifications",
+    response_model=ActionVerificationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_technical_debt_action_execution_verification(
+    technical_debt_id: UUID,
+    action_proposal_id: UUID,
+    action_execution_id: UUID,
+    request: Request,
+    session: ActionVerificationSession,
+    preparation_context: ServerOwnedPreparationContext,
+    verifier: ServerGitHubIssueVerifier,
+) -> ActionVerificationResponse:
+    if await request.body():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail="Request body is not supported",
+        )
+    try:
+        verification = verify_action_execution(
+            session,
+            VerifyActionExecutionCommand(
+                technical_debt_id=technical_debt_id,
+                action_proposal_id=action_proposal_id,
+                action_execution_id=action_execution_id,
+            ),
+            preparation_context,
+            verifier,
+        )
+    except TechnicalDebtNotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TechnicalDebt not found",
+        ) from error
+    except (
+        ActionProposalNotFound,
+        ActionProposalDoesNotBelongToTechnicalDebt,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ActionProposal not found",
+        ) from error
+    except (
+        ActionExecutionNotFound,
+        ActionExecutionDoesNotBelongToProposal,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ActionExecution not found",
+        ) from error
+    except ActionExecutionNotVerifiable as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ActionExecution is not verifiable",
+        ) from error
+    except ActionExecutionReconciliationUnresolved as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except ActionVerificationUnavailable as error:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=ACTION_VERIFICATION_UNAVAILABLE_DETAIL,
+        ) from error
+    return action_verification_response(verification)

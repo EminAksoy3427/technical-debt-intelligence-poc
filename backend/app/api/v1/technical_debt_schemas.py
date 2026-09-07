@@ -11,6 +11,11 @@ from app.domain.action_executions import (
     ActionExecutionStatus,
 )
 from app.domain.action_proposals import ActionProposal, ActionType
+from app.domain.action_verifications import (
+    ActionVerification,
+    ActionVerificationReasonCode,
+    ActionVerificationResult,
+)
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
 from app.domain.human_decisions import HumanDecision, HumanDecisionType
@@ -102,6 +107,16 @@ class ActionExecutionResponse(TechnicalDebtApiModel):
     completed_at: datetime | None
 
 
+class ActionVerificationResponse(TechnicalDebtApiModel):
+    action_verification_id: UUID
+    action_execution_id: UUID
+    result: ActionVerificationResult
+    observed_issue_number: int | None
+    observed_issue_url: str | None
+    safe_reason_code: ActionVerificationReasonCode | None
+    created_at: datetime
+
+
 class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     technical_debt_id: UUID
     lifecycle_status: TechnicalDebtLifecycleStatus
@@ -111,6 +126,7 @@ class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     action_proposals: list[ActionProposalResponse]
     action_approvals: list[ActionApprovalResponse]
     action_executions: list[ActionExecutionResponse]
+    action_verifications: list[ActionVerificationResponse]
 
 
 def technical_debt_list_response(
@@ -153,6 +169,10 @@ def technical_debt_detail_response(
         action_executions=[
             action_execution_response(execution)
             for execution in detail.action_executions
+        ],
+        action_verifications=[
+            action_verification_response(verification)
+            for verification in detail.action_verifications
         ],
     )
 
@@ -197,6 +217,20 @@ def action_execution_response(execution: ActionExecution) -> ActionExecutionResp
         safe_error_category=execution.safe_error_category,
         started_at=execution.started_at,
         completed_at=execution.completed_at,
+    )
+
+
+def action_verification_response(
+    verification: ActionVerification,
+) -> ActionVerificationResponse:
+    return ActionVerificationResponse(
+        action_verification_id=verification.action_verification_id,
+        action_execution_id=verification.action_execution_id,
+        result=verification.result,
+        observed_issue_number=verification.observed_issue_number,
+        observed_issue_url=verification.observed_issue_url,
+        safe_reason_code=verification.safe_reason_code,
+        created_at=verification.created_at,
     )
 
 

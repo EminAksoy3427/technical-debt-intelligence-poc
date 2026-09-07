@@ -10,6 +10,7 @@ from app.actions.contracts import (
     action_preparation_context_from_settings,
 )
 from app.actions.github_issue_executor import GitHubIssueExecutor
+from app.actions.github_issue_verifier import GitHubIssueVerifier
 from app.agent.provider_composition import build_candidate_investigation_provider
 from app.agent.runtime_contracts import InvestigationProvider
 from app.core.config import Settings, settings
@@ -19,11 +20,16 @@ from app.infrastructure.github_issue_executor import (
     GitHubIssueExecutorConfiguration,
     HttpGitHubIssueExecutor,
 )
+from app.infrastructure.github_issue_verifier import (
+    GitHubIssueVerifierConfiguration,
+    HttpGitHubIssueVerifier,
+)
 
 ACTION_PREPARATION_UNAVAILABLE_DETAIL = (
     "Action preparation is unavailable because the server is not configured"
 )
 ACTION_APPROVAL_UNAVAILABLE_DETAIL = "Action approval is not available"
+ACTION_VERIFICATION_UNAVAILABLE_DETAIL = "Action verification is not available"
 
 
 class HumanGovernanceUnavailable(Exception):
@@ -108,6 +114,18 @@ def get_action_execution_session(
     return session
 
 
+def get_action_verification_session(
+    session: Annotated[Session, Depends(get_database_session)],
+) -> Session:
+    """Return a transaction-free Session for the two-phase verification service."""
+    if session.in_transaction():
+        raise RuntimeError(
+            "verify_action_execution requires a transaction-free Session; "
+            "the service owns all verification transactions"
+        )
+    return session
+
+
 def get_github_issue_executor() -> GitHubIssueExecutor | None:
     """Build the dedicated writer only when the server owns a nonblank token."""
     token = settings.github_issue_executor_token
@@ -115,6 +133,24 @@ def get_github_issue_executor() -> GitHubIssueExecutor | None:
         return None
     return HttpGitHubIssueExecutor(
         GitHubIssueExecutorConfiguration(
+            token=token,
+            connect_timeout_seconds=(
+                settings.github_issue_executor_connect_timeout_seconds
+            ),
+            request_timeout_seconds=(
+                settings.github_issue_executor_request_timeout_seconds
+            ),
+        )
+    )
+
+
+def get_github_issue_verifier() -> GitHubIssueVerifier | None:
+    """Build the dedicated reader using the server-owned execution-plane token."""
+    token = settings.github_issue_executor_token
+    if token is None or not token.get_secret_value().strip():
+        return None
+    return HttpGitHubIssueVerifier(
+        GitHubIssueVerifierConfiguration(
             token=token,
             connect_timeout_seconds=(
                 settings.github_issue_executor_connect_timeout_seconds

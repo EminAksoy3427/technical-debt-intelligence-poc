@@ -47,7 +47,7 @@ from app.infrastructure.database.technical_debt_persistence import (
 )
 from app.signal_ingestion import NormalizedSignal
 
-EXPECTED_HEAD = "20260907_03"
+EXPECTED_HEAD = "20260907_04"
 
 
 def _unique_column_sets(inspector: object, table_name: str) -> set[frozenset[str]]:

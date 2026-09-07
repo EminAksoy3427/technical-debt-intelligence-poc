@@ -53,6 +53,26 @@ class LogicalActionExecutionConflict(ValueError):
     """Another proposal occupies the logical external CREATE action."""
 
 
+class ActionExecutionNotFound(ValueError):
+    """The verification command referenced an ActionExecution that does not exist."""
+
+
+class ActionExecutionDoesNotBelongToProposal(ValueError):
+    """The ActionExecution is not on the path ActionProposal."""
+
+
+class ActionExecutionNotVerifiable(ValueError):
+    """The ActionExecution is in a definite state that is not read-back eligible."""
+
+
+class ActionExecutionReconciliationUnresolved(ValueError):
+    """Marker search did not prove exactly one external issue."""
+
+
+class ActionVerificationUnavailable(ValueError):
+    """The verification plane is disabled or cannot target the persisted repository."""
+
+
 @dataclass(frozen=True)
 class PrepareActionProposalCommand:
     """Untrusted prepare intent. Preview semantics are not client-supplied."""
@@ -81,6 +101,15 @@ class ExecuteActionProposalCommand:
 
     technical_debt_id: UUID
     action_proposal_id: UUID
+
+
+@dataclass(frozen=True)
+class VerifyActionExecutionCommand:
+    """Untrusted verify intent containing identities only."""
+
+    technical_debt_id: UUID
+    action_proposal_id: UUID
+    action_execution_id: UUID
 
 
 @dataclass(frozen=True)

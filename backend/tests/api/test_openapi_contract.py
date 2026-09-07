@@ -24,6 +24,14 @@ TECHNICAL_DEBT_ACTION_APPROVALS_PATH = (
     "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
     "/{action_proposal_id}/approvals"
 )
+TECHNICAL_DEBT_ACTION_EXECUTIONS_PATH = (
+    "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
+    "/{action_proposal_id}/executions"
+)
+TECHNICAL_DEBT_ACTION_VERIFICATIONS_PATH = (
+    "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
+    "/{action_proposal_id}/executions/{action_execution_id}/verifications"
+)
 HUMAN_VALIDATION_AUTHORITY_FIELDS = (
     "actor_reference",
     "role",
@@ -403,4 +411,40 @@ def test_openapi_technical_debt_read_contract() -> None:
     serialized_approval = str(approval_operation).lower()
     assert "github_token" not in serialized_approval
     assert "execution" not in serialized_approval
-    assert "verification" not in serialized_approval
+
+    detail_schema = schema["components"]["schemas"]["TechnicalDebtDetailResponse"]
+    assert "action_executions" in detail_schema["properties"]
+    assert "action_verifications" in detail_schema["properties"]
+    assert "verification" not in detail_schema["properties"]
+    assert set(paths[TECHNICAL_DEBT_ACTION_VERIFICATIONS_PATH]) == {"post"}
+    verification_operation = paths[TECHNICAL_DEBT_ACTION_VERIFICATIONS_PATH]["post"]
+    assert "requestBody" not in verification_operation
+    assert verification_operation["responses"]["201"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/ActionVerificationResponse"
+    verification_schema = schema["components"]["schemas"]["ActionVerificationResponse"]
+    assert set(verification_schema["required"]) == {
+        "action_verification_id",
+        "action_execution_id",
+        "result",
+        "observed_issue_number",
+        "observed_issue_url",
+        "safe_reason_code",
+        "created_at",
+    }
+    for forbidden in (
+        "token",
+        "github_token",
+        "authorization",
+        "raw_response",
+        "owner",
+        "repository",
+        "title",
+        "body",
+        "marker",
+        "status",
+    ):
+        assert forbidden not in verification_schema["properties"]
+    serialized_verification = str(verification_operation).lower()
+    assert "github_token" not in serialized_verification
+    assert "requestBody" not in verification_operation
