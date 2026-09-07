@@ -5,6 +5,10 @@ export interface CandidateFilters {
   assetType?: CandidateListItem['assetType'] | ''
 }
 
+export function areCandidateFiltersActive(filters: CandidateFilters): boolean {
+  return Boolean(filters.search?.trim()) || Boolean(filters.assetType)
+}
+
 export function filterCandidates(
   candidates: CandidateListItem[],
   filters: CandidateFilters,
@@ -15,6 +19,7 @@ export function filterCandidates(
     const matchesSearch =
       !searchTerm ||
       candidate.title.toLowerCase().includes(searchTerm) ||
+      candidate.presentationTitle.toLowerCase().includes(searchTerm) ||
       candidate.assetName.toLowerCase().includes(searchTerm)
     const matchesAssetType = !filters.assetType || candidate.assetType === filters.assetType
 

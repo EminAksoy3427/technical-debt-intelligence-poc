@@ -8,14 +8,19 @@ defineProps<{
 
 <template>
   <div v-if="references.length > 0" class="candidate-grounding-references">
-    <p class="candidate-evidence-id">Grounding references</p>
-    <ul class="candidate-investigation-note-list">
-      <li v-for="reference in references" :key="reference.key">
-        <span class="badge badge--neutral">{{ reference.referenceTypeLabel }}</span>
-        <span class="candidate-identifier candidate-breakable">{{ reference.identifier }}</span>
-        <span v-if="reference.relatedLabel != null" class="candidate-fact-primary">
-          {{ reference.relatedLabel }}
-        </span>
+    <p class="candidate-record-kicker">Grounded by</p>
+    <ul class="candidate-grounding-list">
+      <li v-for="reference in references" :key="reference.key" class="candidate-grounding-item">
+        <div class="candidate-grounding-primary">
+          <span class="candidate-type-badge">{{ reference.referenceTypeLabel }}</span>
+          <span v-if="reference.displayLabel" class="candidate-grounding-label">
+            {{ reference.displayLabel }}
+          </span>
+        </div>
+        <CandidateProvenanceDetails
+          :summary-label="reference.provenanceSummaryLabel"
+          :rows="reference.provenanceRows"
+        />
       </li>
     </ul>
   </div>

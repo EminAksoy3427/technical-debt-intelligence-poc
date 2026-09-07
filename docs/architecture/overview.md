@@ -67,7 +67,7 @@ connectors.
 | Correlation | `backend/app/candidate_correlation.py`: canonical asset and problem-family grouping, deterministic identifiers and rationale |
 | Persistence / context | `backend/app/infrastructure/database`: SQLAlchemy models, persistence, enterprise/dependency context and Candidate read model |
 | Human Validation | `backend/app/governance`: contracts, transitions, and `apply_human_validation`; persistence under `infrastructure/database` |
-| Delivery | `backend/app/main.py`, `backend/app/api/v1`, Nuxt `frontend/app/pages/candidates`, `frontend/app/pages/technical-debts`, and `frontend/app/pages/sources` |
+| Delivery | `backend/app/main.py`, `backend/app/api/v1`, Nuxt `frontend/app/pages/overview`, `frontend/app/pages/candidates`, `frontend/app/pages/technical-debts`, and `frontend/app/pages/sources` |
 
 The development population command in `backend/app/development_population.py`
 uses a fixed Semgrep + seeded-incident slice; it is not the entire ingestion
@@ -344,9 +344,11 @@ authorize action.
 
 ## CURRENT frontend baseline
 
-Nuxt 4 / Vue / TypeScript provides `/candidates`, `/candidates/[id]`,
-`/technical-debts`, `/technical-debts/[id]`, and `/sources`;
-`frontend/app/pages/index.vue` redirects `/` to `/candidates`.
+Nuxt 4 / Vue / TypeScript provides `/overview`, `/candidates`, `/candidates/[id]`,
+`/technical-debts`, `/technical-debts/[id]`, and `/sources`.
+`frontend/app/pages/index.vue` redirects `/` to `/overview`.
+`/overview` is the product landing page. `/candidates` remains the Candidate
+review queue.
 Candidate pages use `useCandidateApi` and real FastAPI Candidate GET endpoints.
 Candidate Detail sections are Overview, Evidence & Context, Agent
 Investigation, and Human Validation. Agent Investigation and Human Validation
@@ -373,8 +375,8 @@ raises a configuration error; pages show failure rather than silently
 substituting mock data. Configure `NUXT_PUBLIC_API_BASE_URL` as the API origin.
 Pool search and asset-type filtering are client-side.
 
-`frontend/app/components/navigation/AppNavigation.vue` contains **Candidates**,
-**Technical Debts**, and **Sources & Connectors**. The Sources page is registry
+`frontend/app/components/navigation/AppSidebar.vue` contains **Overview**,
+**Candidates**, **Technical Debts**, and **Sources**. The Sources page is registry
 inventory, not a health dashboard: Registered is not Healthy, Connected, or
 Online. Future information architecture may still grow toward
 Audit / Assurance. That workspace is not implemented.

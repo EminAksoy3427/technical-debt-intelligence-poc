@@ -19,6 +19,9 @@ export interface GroundingReferenceItem {
   referenceTypeLabel: string
   identifier: string
   relatedLabel: string | null
+  displayLabel: string | null
+  provenanceRows: { label: string; value: string }[]
+  provenanceSummaryLabel: string
 }
 
 export interface GroundedClaimItem {
@@ -43,6 +46,7 @@ export interface ToolExecutionItem {
   sequenceNumber: number
   toolId: string
   toolVersion: string
+  toolDisplayLabel: string
   status: ToolExecutionStatus
   statusLabel: string
   durationMs: number
@@ -55,12 +59,17 @@ export interface PolicyDecisionItem {
   toolExecutionId: string
   decision: PolicyDecision
   decisionLabel: string
+  decisionStatusLabel: string
   requestedEffect: ToolEffect
+  requestedEffectLabel: string
   requestedRisk: ToolRisk
+  requestedRiskLabel: string
   requiredScopes: string[]
   ruleId: string
   reasonCode: string
   decidedAt: string
+  toolId: string | null
+  toolDisplayLabel: string | null
 }
 
 export interface AgentInvestigationPresentation {
@@ -115,4 +124,9 @@ export const toolExecutionStatusLabels: Record<ToolExecutionStatus, string> = {
 export const policyDecisionLabels: Record<PolicyDecision, string> = {
   ALLOW: 'Policy allowed tool execution',
   DENY: 'Policy denied tool execution',
+}
+
+export const policyDecisionStatusLabels: Record<PolicyDecision, string> = {
+  ALLOW: 'Allowed',
+  DENY: 'Denied',
 }

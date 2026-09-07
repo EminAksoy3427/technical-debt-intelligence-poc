@@ -1,8 +1,25 @@
 <script setup lang="ts">
-import { candidatePoolAssetTypeLabels, humanDecisionTypeLabels } from '~/types/candidate'
-import { technicalDebtLifecycleStatusLabels } from '~/types/technicalDebt'
+import { candidateAssetTypeDisplayLabel } from '~/types/candidate'
+import { formatDisplayTimestamp } from '~/utils/candidateDetailDisplay'
 import { toTechnicalDebtDetailPresentation } from '~/utils/mapTechnicalDebt'
 import { resolveTechnicalDebtDetailViewState } from '~/utils/resolveTechnicalDebtDetailViewState'
+import {
+  displayRecordedValue,
+  hasRecordedValue,
+  humanDecisionTypeDisplayLabel,
+} from '~/utils/technicalDebtDisplay'
+import {
+  technicalDebtsCreationDecisionIntroduction,
+  technicalDebtsDetailErrorExplanation,
+  technicalDebtsDetailErrorTitle,
+  technicalDebtsDetailInvalidExplanation,
+  technicalDebtsDetailInvalidTitle,
+  technicalDebtsDetailLoading,
+  technicalDebtsDetailNotFoundExplanation,
+  technicalDebtsDetailNotFoundTitle,
+  technicalDebtsReviewCandidatesLabel,
+  technicalDebtsSourceCandidateIntroduction,
+} from '~/utils/technicalDebtPageCopy'
 
 const route = useRoute()
 const { getTechnicalDebt } = useTechnicalDebtApi()
@@ -31,145 +48,174 @@ const presentation = computed(() => {
 
   return toTechnicalDebtDetailPresentation(data.value)
 })
+
+const creationDecisionRows = computed(() => {
+  const decision = presentation.value?.creationHumanDecision
+  if (decision == null) {
+    return []
+  }
+
+  return [
+    { label: 'HumanDecision ID', value: decision.humanDecisionId },
+    { label: 'Decision', value: decision.decision },
+    { label: 'Created at (raw)', value: decision.createdAt },
+  ]
+})
 </script>
 
 <template>
-  <section class="page-section candidate-detail" aria-labelledby="technical-debt-title">
-    <NuxtLink to="/technical-debts" class="back-link">Back to Technical Debts</NuxtLink>
-
+  <section class="page-section technical-debt-detail candidate-detail" aria-labelledby="technical-debt-title">
     <template v-if="viewState === 'loading'">
-      <p class="eyebrow">TechnicalDebt</p>
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/technical-debts">Technical Debts</NuxtLink>
+          </li>
+          <li aria-current="page">TechnicalDebt</li>
+        </ol>
+      </nav>
       <h1 id="technical-debt-title">TechnicalDebt</h1>
-      <p class="candidate-detail-message" role="status">Loading TechnicalDebt details.</p>
+      <p class="technical-debt-status" role="status">{{ technicalDebtsDetailLoading }}</p>
     </template>
 
     <template v-else-if="viewState === 'not-found'">
-      <h1 id="technical-debt-title">TechnicalDebt was not found.</h1>
-      <p class="page-introduction">The requested TechnicalDebt does not exist.</p>
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/technical-debts">Technical Debts</NuxtLink>
+          </li>
+          <li aria-current="page">TechnicalDebt</li>
+        </ol>
+      </nav>
+      <h1 id="technical-debt-title">{{ technicalDebtsDetailNotFoundTitle }}</h1>
+      <p class="page-introduction">{{ technicalDebtsDetailNotFoundExplanation }}</p>
+      <p class="technical-debt-detail-actions">
+        <NuxtLink to="/technical-debts" class="button button--secondary">
+          Back to Technical Debts
+        </NuxtLink>
+      </p>
     </template>
 
     <template v-else-if="viewState === 'invalid-identifier'">
-      <h1 id="technical-debt-title">The TechnicalDebt identifier is invalid.</h1>
-      <p class="page-introduction">
-        The requested TechnicalDebt identifier is not a valid TechnicalDebt ID.
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/technical-debts">Technical Debts</NuxtLink>
+          </li>
+          <li aria-current="page">TechnicalDebt</li>
+        </ol>
+      </nav>
+      <h1 id="technical-debt-title">{{ technicalDebtsDetailInvalidTitle }}</h1>
+      <p class="page-introduction">{{ technicalDebtsDetailInvalidExplanation }}</p>
+      <p class="technical-debt-detail-actions">
+        <NuxtLink to="/technical-debts" class="button button--secondary">
+          Back to Technical Debts
+        </NuxtLink>
       </p>
     </template>
 
     <template v-else-if="viewState === 'error'">
-      <h1 id="technical-debt-title">TechnicalDebt details could not be loaded.</h1>
-      <p class="page-introduction">TechnicalDebt details could not be loaded. Try again later.</p>
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/technical-debts">Technical Debts</NuxtLink>
+          </li>
+          <li aria-current="page">TechnicalDebt</li>
+        </ol>
+      </nav>
+      <h1 id="technical-debt-title">{{ technicalDebtsDetailErrorTitle }}</h1>
+      <p class="page-introduction">{{ technicalDebtsDetailErrorExplanation }}</p>
+      <p class="technical-debt-detail-actions">
+        <NuxtLink to="/candidates" class="button button--secondary">
+          {{ technicalDebtsReviewCandidatesLabel }}
+        </NuxtLink>
+      </p>
     </template>
 
     <template v-else-if="presentation">
-      <header class="candidate-summary">
-        <p class="eyebrow">TechnicalDebt</p>
-        <h1 id="technical-debt-title">{{ presentation.sourceCandidate.hypothesis }}</h1>
-        <p class="candidate-identifier">
-          <span class="candidate-id-label">TechnicalDebt ID</span>
-          {{ presentation.technicalDebtId }}
-        </p>
-        <p class="candidate-summary-note">
-          REGISTERED means a human VALIDATE decision created this record. It is
-          not remediation approval.
-        </p>
+      <TechnicalDebtDetailHeader :presentation="presentation" />
 
-        <dl class="candidate-summary-facts">
+      <section
+        class="candidate-section-surface technical-debt-detail-section"
+        aria-labelledby="technical-debt-source-heading"
+      >
+        <h2 id="technical-debt-source-heading">Source Candidate</h2>
+        <p class="candidate-section-note">{{ technicalDebtsSourceCandidateIntroduction }}</p>
+        <dl class="candidate-fact-list">
           <div>
-            <dt>Lifecycle status</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                technicalDebtLifecycleStatusLabels[presentation.lifecycleStatus]
-              }}</span>
-              <span class="candidate-identifier">{{ presentation.lifecycleStatus }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Created at</dt>
-            <dd>{{ presentation.createdAt }}</dd>
+            <dt>Hypothesis</dt>
+            <dd>{{ displayRecordedValue(presentation.sourceCandidate.hypothesis) }}</dd>
           </div>
           <div>
             <dt>Canonical asset</dt>
             <dd>
-              <span class="candidate-asset-name">{{
-                presentation.sourceCandidate.canonicalAssetKey
-              }}</span>
-              <span class="badge badge--neutral">{{
-                candidatePoolAssetTypeLabels[presentation.sourceCandidate.canonicalAssetType]
-              }}</span>
-            </dd>
-          </div>
-        </dl>
-      </header>
-
-      <section class="candidate-detail-section" aria-labelledby="technical-debt-source-heading">
-        <h2 id="technical-debt-source-heading">Source Candidate</h2>
-        <p class="candidate-section-introduction">
-          Evidence remains on the source Candidate. This page does not copy
-          Candidate Evidence into TechnicalDebt-owned evidence.
-        </p>
-        <dl class="candidate-detail-list candidate-detail-list--scan">
-          <div>
-            <dt>Candidate ID</dt>
-            <dd class="candidate-identifier candidate-breakable">
-              {{ presentation.sourceCandidate.candidateId }}
+              <span class="candidate-asset-line">
+                <span>{{
+                  displayRecordedValue(presentation.sourceCandidate.canonicalAssetKey)
+                }}</span>
+                <span class="candidate-type-badge">{{
+                  candidateAssetTypeDisplayLabel(
+                    presentation.sourceCandidate.canonicalAssetType,
+                  )
+                }}</span>
+              </span>
             </dd>
           </div>
           <div>
-            <dt>Hypothesis</dt>
-            <dd>{{ presentation.sourceCandidate.hypothesis }}</dd>
-          </div>
-          <div class="candidate-fact-span">
             <dt>Correlation rationale</dt>
-            <dd>{{ presentation.sourceCandidate.correlationRationale }}</dd>
+            <dd>{{
+              displayRecordedValue(presentation.sourceCandidate.correlationRationale)
+            }}</dd>
           </div>
         </dl>
-        <p>
+        <p class="technical-debt-detail-actions">
           <NuxtLink
             class="candidate-reference-link"
             :to="`/candidates/${presentation.sourceCandidate.candidateId}`"
           >
-            View source Candidate
+            Open Candidate
           </NuxtLink>
         </p>
       </section>
 
-      <section class="candidate-detail-section" aria-labelledby="technical-debt-decision-heading">
-        <h2 id="technical-debt-decision-heading">Creation HumanDecision</h2>
-        <p class="candidate-section-introduction">
-          The VALIDATE decision that created this TechnicalDebt. Audit actor is
-          server-owned attribution, not verified employee identity.
-        </p>
-        <dl class="candidate-detail-list candidate-detail-list--scan">
+      <section
+        class="candidate-section-surface technical-debt-detail-section"
+        aria-labelledby="technical-debt-decision-heading"
+      >
+        <h2 id="technical-debt-decision-heading">Creation VALIDATE decision</h2>
+        <p class="candidate-section-note">{{ technicalDebtsCreationDecisionIntroduction }}</p>
+        <dl class="candidate-fact-list">
           <div>
             <dt>Decision</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                humanDecisionTypeLabels[presentation.creationHumanDecision.decision]
-              }}</span>
-              <span class="candidate-identifier">{{
-                presentation.creationHumanDecision.decision
-              }}</span>
-            </dd>
+            <dd>{{ humanDecisionTypeDisplayLabel(presentation.creationHumanDecision.decision) }}</dd>
           </div>
           <div>
             <dt>Sequence</dt>
             <dd>{{ presentation.creationHumanDecision.sequenceNumber }}</dd>
           </div>
           <div>
-            <dt>Created at</dt>
-            <dd>{{ presentation.creationHumanDecision.createdAt }}</dd>
+            <dt>Created</dt>
+            <dd>
+              <time :datetime="presentation.creationHumanDecision.createdAt">{{
+                formatDisplayTimestamp(presentation.creationHumanDecision.createdAt)
+              }}</time>
+            </dd>
           </div>
           <div>
             <dt>Audit actor</dt>
             <dd class="candidate-breakable">
-              {{ presentation.creationHumanDecision.actorReference }}
+              {{ displayRecordedValue(presentation.creationHumanDecision.actorReference) }}
             </dd>
           </div>
-          <div v-if="presentation.creationHumanDecision.rationale" class="candidate-fact-span">
+          <div v-if="hasRecordedValue(presentation.creationHumanDecision.rationale)">
             <dt>Rationale</dt>
             <dd>{{ presentation.creationHumanDecision.rationale }}</dd>
           </div>
         </dl>
+        <CandidateProvenanceDetails
+          :rows="creationDecisionRows"
+          summary-label="Technical details"
+        />
       </section>
     </template>
   </section>

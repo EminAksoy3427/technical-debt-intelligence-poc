@@ -13,6 +13,10 @@ function readFrontendSource(relativePath: string): string {
 describe('Candidate Detail route source', () => {
   const detailPage = readFrontendSource('pages/candidates/[id].vue')
   const poolTable = readFrontendSource('components/candidate/CandidatePoolTable.vue')
+  const evidenceTab = readFrontendSource(
+    'components/candidate/CandidateEvidenceContextTab.vue',
+  )
+  const overviewTab = readFrontendSource('components/candidate/CandidateOverviewTab.vue')
 
   it('fetches Detail through useCandidateApi.getCandidate and the route Candidate ID', () => {
     expect(detailPage).toContain('useCandidateApi()')
@@ -36,7 +40,9 @@ describe('Candidate Detail route source', () => {
   it('reuses the D1 Detail response for enterprise and dependency context', () => {
     expect(detailPage).toContain('toCandidateDetailPresentation(data.value)')
     expect(detailPage).toContain('presentation.enterpriseContext')
-    expect(detailPage).toContain('presentation.dependencyContext')
+    expect(overviewTab).toContain('presentation.dependencyContext')
+    expect(evidenceTab).toContain('presentation.enterpriseContext')
+    expect(evidenceTab).toContain('presentation.dependencyContext')
     expect(detailPage).not.toContain('getCandidates')
     expect(detailPage).not.toContain('/api/v1/assets')
     expect(detailPage).not.toContain('/api/v1/incidents')
@@ -46,17 +52,22 @@ describe('Candidate Detail route source', () => {
   })
 
   it('keeps D1 Candidate, Signal, Evidence, and error-state rendering', () => {
-    expect(detailPage).toContain('presentation.candidate.hypothesis')
-    expect(detailPage).toContain('presentation.candidate.correlationRationale')
-    expect(detailPage).toContain('CandidateSignalList')
-    expect(detailPage).toContain('CandidateEvidenceList')
-    expect(detailPage.indexOf('CandidateEvidenceList')).toBeLessThan(
-      detailPage.indexOf('CandidateSignalList'),
+    expect(detailPage).toContain('presentation.value.candidate.hypothesis')
+    expect(overviewTab).toContain('presentation.candidate.correlationRationale')
+    expect(evidenceTab).toContain('CandidateSignalList')
+    expect(evidenceTab).toContain('CandidateEvidenceList')
+    expect(evidenceTab.indexOf('CandidateEvidenceList')).toBeLessThan(
+      evidenceTab.indexOf('CandidateSignalList'),
     )
     expect(detailPage).toContain("viewState === 'loading'")
     expect(detailPage).toContain("viewState === 'not-found'")
     expect(detailPage).toContain("viewState === 'invalid-identifier'")
     expect(detailPage).toContain("viewState === 'error'")
+    expect(detailPage).toContain('Loading candidate details.')
+    expect(detailPage).toContain('Candidate details could not be loaded.')
+    expect(detailPage).toContain('to="/candidates"')
+    expect(detailPage).toContain('Back to Candidates')
+    expect(detailPage).not.toContain('class="eyebrow"')
     expect(detailPage).toContain('id="candidate-overview"')
     expect(detailPage).toContain('id="candidate-evidence-context"')
     expect(detailPage).toContain('CandidateAgentInvestigation')

@@ -41,9 +41,9 @@ export function humanValidationSubmitMessage(status: HumanValidationSubmitStatus
     case 'success-refresh-failed':
       return 'Human Validation was saved, but the latest governance state could not be refreshed.'
     case 'conflict':
-      return 'The governance state changed. Refreshing the latest decision history.'
+      return 'This Candidate changed since you started reviewing. The latest state has been refreshed. Review it before recording a decision.'
     case 'conflict-refresh-failed':
-      return 'The governance state changed, but the latest decision history could not be refreshed.'
+      return 'This Candidate changed since you started reviewing, but the latest state could not be refreshed.'
     case 'unavailable':
       return 'Human Validation is not available.'
     case 'not-found':

@@ -11,6 +11,7 @@ function readFrontendSource(relativePath: string): string {
 }
 
 const detailPage = readFrontendSource('pages/candidates/[id].vue')
+const tabDefs = readFrontendSource('utils/candidateDetailTabs.ts')
 const humanValidation = readFrontendSource(
   'components/candidate/CandidateHumanValidation.vue',
 )
@@ -20,16 +21,21 @@ const investigation = readFrontendSource(
 const requestBuilder = readFrontendSource('utils/buildHumanValidationRequest.ts')
 const apiClient = readFrontendSource('composables/useHumanValidationApi.ts')
 const labels = readFrontendSource('types/candidate.ts')
+const decisionCopy = readFrontendSource('utils/humanValidationDecisionCopy.ts')
 
 const humanValidationSources = [humanValidation, requestBuilder, apiClient].join('\n')
 
 describe('Candidate Human Validation section', () => {
   it('is a Candidate Detail section after Agent Investigation', () => {
     expect(detailPage).toContain('CandidateHumanValidation')
-    expect(detailPage).toContain("id: 'candidate-human-validation'")
-    expect(detailPage).toContain("label: 'Human Validation'")
+    expect(tabDefs).toContain("id: 'validation'")
+    expect(tabDefs).toContain("label: 'Human Validation'")
+    expect(tabDefs).toContain("panelId: 'candidate-human-validation'")
     expect(detailPage).toContain(':governance="presentation.governance"')
+    expect(detailPage).toContain(':candidateTitle="presentationTitle.title"')
+    expect(detailPage).toContain(':evidenceCount="presentation.evidence.length"')
     expect(detailPage).toContain(':refreshCandidate="refresh"')
+    expect(detailPage).toContain(':isActive="selectedTab === \'validation\'"')
     expect(humanValidation).toContain('id="candidate-human-validation"')
     expect(humanValidation).toContain('Human Validation')
 
@@ -41,10 +47,24 @@ describe('Candidate Human Validation section', () => {
   it('keeps Agent Investigation visually separate from Human Validation', () => {
     expect(investigation).toContain('id="candidate-agent-investigation"')
     expect(investigation).not.toContain('createHumanDecision')
-    expect(investigation).not.toContain('Submit decision')
+    expect(investigation).not.toContain('Validate Candidate')
     expect(humanValidation).not.toContain('Start Investigation')
     expect(humanValidation).not.toContain('structured_assessment')
-    expect(humanValidation).toContain('not Agent Investigation')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_DISTINCTION')
+    expect(decisionCopy).toContain(
+      'AI investigation is decision support. This decision is recorded by a human reviewer.',
+    )
+  })
+
+  it('identifies human responsibility and existing Candidate context', () => {
+    expect(humanValidation).toContain('HUMAN_VALIDATION_HEADER_HELPER')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_CLOSED_HELPER')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_DISTINCTION')
+    expect(humanValidation).toContain('candidateTitle')
+    expect(humanValidation).toContain('evidenceCountLabel')
+    expect(humanValidation).toContain('formatHumanValidationEvidenceCount')
+    expect(humanValidation).not.toContain('Completed')
+    expect(decisionCopy).toContain('Review the available evidence and record a governance decision.')
   })
 
   it('shows persisted PENDING governance, revision, and decision actions', () => {
@@ -58,6 +78,50 @@ describe('Candidate Human Validation section', () => {
     expect(humanValidation).not.toContain('Approve')
     expect(humanValidation).not.toContain('>Approved<')
     expect(labels).not.toContain('Approve')
+  })
+
+  it('uses selectable radios that configure the form without submitting', () => {
+    expect(humanValidation).toContain('type="radio"')
+    expect(humanValidation).toContain('name="human-validation-decision"')
+    expect(humanValidation).toContain('@change="selectDecision(action)"')
+    expect(humanValidation).toContain('human-validation-option--selected')
+    expect(humanValidation).toContain('Selected')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_SELECT_PROMPT')
+    expect(humanValidation).toContain('@submit.prevent="submitDecision"')
+    expect(humanValidation).toContain('v-if="selectedDecision != null"')
+    expect(humanValidation).not.toContain('@click="submitDecision"')
+    expect(humanValidation).not.toContain('@change="submitDecision"')
+  })
+
+  it('shows only the fields required for the selected backend decision', () => {
+    expect(humanValidation).toContain("selectedDecision === 'VALIDATE' || selectedDecision === 'REJECT'")
+    expect(humanValidation).toContain("selectedDecision === 'REQUEST_INFO'")
+    expect(humanValidation).toContain('humanValidationClientValidationMessage')
+    expect(humanValidation).toContain('Rationale')
+    expect(humanValidation).toContain('Information requested')
+    expect(humanValidation).toContain('Explain the basis for this decision.')
+    expect(humanValidation).toContain('Describe what additional evidence or context is needed.')
+    expect(requestBuilder).toContain("decision === 'REQUEST_INFO'")
+    expect(requestBuilder).toContain('Requested information is required.')
+    expect(requestBuilder).toContain('Rationale is required.')
+  })
+
+  it('uses decision-specific submit labels and VALIDATE TechnicalDebt consequence', () => {
+    expect(humanValidation).toContain('humanValidationSubmitLabel')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_VALIDATE_CONSEQUENCE')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_REJECT_HELPER')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_REQUEST_INFO_HELPER')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_SUBMIT_HELPER')
+    expect(decisionCopy).toContain("VALIDATE: 'Validate Candidate'")
+    expect(decisionCopy).toContain("REJECT: 'Reject Candidate'")
+    expect(decisionCopy).toContain("REQUEST_INFO: 'Request information'")
+    expect(decisionCopy).toContain('creates the corresponding governed record')
+    expect(decisionCopy).toContain('The Candidate is not deleted.')
+    expect(decisionCopy).toContain('The Candidate is not validated or rejected.')
+    expect(humanValidation).not.toContain('Submit decision')
+    expect(humanValidation).not.toContain('Execute')
+    expect(humanValidation).not.toContain('Apply remediation')
+    expect(humanValidation).not.toContain('Approve AI recommendation')
   })
 
   it('submits expected revision and rationale through the Human Validation API', () => {
@@ -83,10 +147,13 @@ describe('Candidate Human Validation section', () => {
     expect(humanValidation).toContain('decision.actorReference')
     expect(humanValidation).toContain('Audit actor')
     expect(humanValidation).toContain('not verified employee identity')
-    expect(humanValidation).toContain('View Technical Debt')
+    expect(humanValidation).toContain('humanDecisionResultingGovernanceLabel')
+    expect(humanValidation).toContain('Open TechnicalDebt record')
     expect(humanValidation).toContain(
       '`/technical-debts/${governance.technicalDebt.technicalDebtId}`',
     )
+    expect(humanValidation).toContain('v-if="governance.technicalDebt"')
+    expect(humanValidation).toContain("orderedDecisions.length === 0")
   })
 
   it('blocks double submit and shows an in-progress state', () => {
@@ -138,5 +205,12 @@ describe('Candidate Human Validation section', () => {
     expect(humanValidationSources).not.toContain('actor selector')
     expect(humanValidation).not.toContain('type="hidden"')
     expect(humanValidation).not.toMatch(/v-model="(actor|role|approval|provider|model)/)
+  })
+
+  it('keeps Candidate distinct from TechnicalDebt until a VALIDATE result is returned', () => {
+    expect(humanValidation).toContain('HUMAN_VALIDATION_VALIDATE_CONSEQUENCE')
+    expect(humanValidation).toContain('v-if="governance.technicalDebt"')
+    expect(humanValidation).not.toContain('getMockCandidateDetail')
+    expect(decisionCopy).toContain('Confirm this Candidate as TechnicalDebt.')
   })
 })

@@ -11,6 +11,7 @@ import {
   type CandidateEnterpriseAssetContext,
   type CandidateEnterpriseOwnershipItem,
 } from '~/types/candidate'
+import { formatDisplayTimestamp } from '~/utils/candidateDetailDisplay'
 
 defineProps<{
   asset: CandidateEnterpriseAssetContext
@@ -21,153 +22,100 @@ defineProps<{
 </script>
 
 <template>
-  <section class="candidate-detail-section" aria-labelledby="candidate-enterprise-heading">
-    <h3 id="candidate-enterprise-heading">Enterprise context</h3>
+  <section class="candidate-snapshot" aria-labelledby="candidate-enterprise-heading">
+    <h2 id="candidate-enterprise-heading">Enterprise context</h2>
+    <p class="candidate-helper">
+      These records describe ownership of the enterprise asset, not validated TechnicalDebt ownership.
+      Relationships describe recorded enterprise structure; they do not establish Candidate causality.
+      Incidents are associated operational context and do not prove that this Candidate caused them.
+    </p>
 
-    <div class="candidate-context-grid">
-      <section class="candidate-context-panel" aria-labelledby="candidate-asset-facts-heading">
-        <h4 id="candidate-asset-facts-heading">Asset facts</h4>
-        <dl class="candidate-detail-list">
-          <div>
-            <dt>Asset name</dt>
-            <dd class="candidate-fact-primary">{{ asset.name }}</dd>
-          </div>
-          <div>
-            <dt>Asset key</dt>
-            <dd class="candidate-identifier candidate-breakable">{{ asset.assetKey }}</dd>
-          </div>
-          <div>
-            <dt>Asset type</dt>
-            <dd>
-              <span class="badge badge--neutral">{{ candidatePoolAssetTypeLabels[asset.assetType] }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Asset criticality</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                candidateAssetCriticalityLabels[asset.criticality]
+    <dl class="candidate-kv-list">
+      <div class="candidate-kv-row">
+        <dt id="candidate-asset-facts-heading">Asset</dt>
+        <dd>
+          <span class="candidate-fact-primary">{{ asset.name }}</span>
+          <span class="candidate-identifier candidate-breakable">{{ asset.assetKey }}</span>
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt>Type</dt>
+        <dd>
+          <span class="candidate-type-badge">{{ candidatePoolAssetTypeLabels[asset.assetType] }}</span>
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt>Criticality</dt>
+        <dd>
+          <span class="visually-hidden">Asset criticality </span>
+          {{ candidateAssetCriticalityLabels[asset.criticality] }}
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt>Lifecycle</dt>
+        <dd>
+          <span class="visually-hidden">Asset lifecycle status </span>
+          {{ candidateAssetLifecycleStatusLabels[asset.lifecycleStatus] }}
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt id="candidate-ownership-heading">Enterprise asset ownership</dt>
+        <dd>
+          <span v-if="ownerships.length === 0" class="candidate-empty-value">None recorded.</span>
+          <ul v-else class="candidate-compact-value-list">
+            <li
+              v-for="ownership in ownerships"
+              :key="`${ownership.teamKey}:${ownership.ownershipRole}`"
+            >
+              <span class="candidate-fact-primary">{{ ownership.teamName }}</span>
+              <span aria-hidden="true"> · </span>
+              <span>{{ candidateOwnershipRoleLabels[ownership.ownershipRole] }}</span>
+              <span class="candidate-identifier candidate-breakable">{{ ownership.teamKey }}</span>
+            </li>
+          </ul>
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt id="candidate-relationships-heading">Direct relationships</dt>
+        <dd>
+          <span v-if="relationships.length === 0" class="candidate-empty-value">None recorded.</span>
+          <ul v-else class="candidate-compact-value-list">
+            <li
+              v-for="relationship in relationships"
+              :key="`${relationship.sourceAssetKey}:${relationship.relationshipType}:${relationship.targetAssetKey}`"
+            >
+              <span class="candidate-type-badge">{{
+                candidateRelationshipTypeLabels[relationship.relationshipType]
               }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt>Asset lifecycle status</dt>
-            <dd>
-              <span class="badge badge--neutral">{{
-                candidateAssetLifecycleStatusLabels[asset.lifecycleStatus]
-              }}</span>
-            </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section class="candidate-context-panel" aria-labelledby="candidate-ownership-heading">
-        <h4 id="candidate-ownership-heading">Enterprise asset ownership</h4>
-        <p class="candidate-section-introduction">
-          These records describe ownership of the enterprise asset, not validated TechnicalDebt ownership.
-        </p>
-        <p v-if="ownerships.length === 0" class="candidate-section-introduction">
-          No enterprise ownership records are available.
-        </p>
-        <ul v-else class="candidate-membership-list candidate-membership-list--cards">
-          <li
-            v-for="ownership in ownerships"
-            :key="`${ownership.teamKey}:${ownership.ownershipRole}`"
-          >
-            <dl class="candidate-detail-list">
+              <span class="candidate-breakable">{{ relationship.sourceAssetKey }}</span>
+              <span aria-hidden="true"> → </span>
+              <span class="candidate-breakable">{{ relationship.targetAssetKey }}</span>
+            </li>
+          </ul>
+        </dd>
+      </div>
+      <div class="candidate-kv-row">
+        <dt id="candidate-incidents-heading">Direct incidents</dt>
+        <dd>
+          <span v-if="incidents.length === 0" class="candidate-empty-value">None recorded.</span>
+          <ul v-else class="candidate-compact-value-list">
+            <li v-for="incident in incidents" :key="incident.incidentKey">
               <div>
-                <dt>Team name</dt>
-                <dd class="candidate-fact-primary">{{ ownership.teamName }}</dd>
+                <span class="candidate-fact-primary">{{ incident.title }}</span>
+                <span aria-hidden="true"> · </span>
+                <span>Incident severity {{ candidateIncidentSeverityLabels[incident.severity] }}</span>
               </div>
-              <div>
-                <dt>Ownership role</dt>
-                <dd>
-                  <span class="badge badge--neutral">{{
-                    candidateOwnershipRoleLabels[ownership.ownershipRole]
-                  }}</span>
-                </dd>
+              <div class="candidate-record-meta">
+                <span>{{ formatDisplayTimestamp(incident.startedAt) }}</span>
+                <span v-if="incident.resolvedAt != null">
+                  Resolved {{ formatDisplayTimestamp(incident.resolvedAt) }}
+                </span>
+                <span class="candidate-identifier candidate-breakable">{{ incident.incidentKey }}</span>
               </div>
-              <div>
-                <dt>Team key</dt>
-                <dd class="candidate-identifier candidate-breakable">{{ ownership.teamKey }}</dd>
-              </div>
-            </dl>
-          </li>
-        </ul>
-      </section>
-
-      <section class="candidate-context-panel" aria-labelledby="candidate-relationships-heading">
-        <h4 id="candidate-relationships-heading">Direct relationships</h4>
-        <p class="candidate-section-introduction">
-          Relationships describe recorded enterprise structure; they do not establish Candidate causality.
-        </p>
-        <p v-if="relationships.length === 0" class="candidate-section-introduction">
-          No direct relationships are recorded.
-        </p>
-        <ul v-else class="candidate-membership-list candidate-membership-list--cards">
-          <li
-            v-for="relationship in relationships"
-            :key="`${relationship.sourceAssetKey}:${relationship.relationshipType}:${relationship.targetAssetKey}`"
-          >
-            <dl class="candidate-detail-list">
-              <div>
-                <dt>Relationship type</dt>
-                <dd class="candidate-fact-primary">{{
-                  candidateRelationshipTypeLabels[relationship.relationshipType]
-                }}</dd>
-              </div>
-              <div>
-                <dt>Source asset key</dt>
-                <dd class="candidate-identifier candidate-breakable">{{ relationship.sourceAssetKey }}</dd>
-              </div>
-              <div>
-                <dt>Target asset key</dt>
-                <dd class="candidate-identifier candidate-breakable">{{ relationship.targetAssetKey }}</dd>
-              </div>
-            </dl>
-          </li>
-        </ul>
-      </section>
-
-      <section class="candidate-context-panel" aria-labelledby="candidate-incidents-heading">
-        <h4 id="candidate-incidents-heading">Direct incidents</h4>
-        <p class="candidate-section-introduction">
-          Incidents are associated operational context and do not prove that this Candidate caused them.
-        </p>
-        <p v-if="incidents.length === 0" class="candidate-section-introduction">
-          No direct incidents are recorded.
-        </p>
-        <ul v-else class="candidate-membership-list candidate-membership-list--cards">
-          <li v-for="incident in incidents" :key="incident.incidentKey">
-            <dl class="candidate-detail-list">
-              <div>
-                <dt>Title</dt>
-                <dd class="candidate-fact-primary">{{ incident.title }}</dd>
-              </div>
-              <div>
-                <dt>Incident severity</dt>
-                <dd>
-                  <span class="badge badge--neutral">{{
-                    candidateIncidentSeverityLabels[incident.severity]
-                  }}</span>
-                </dd>
-              </div>
-              <div>
-                <dt>Started at</dt>
-                <dd>{{ incident.startedAt }}</dd>
-              </div>
-              <div v-if="incident.resolvedAt != null">
-                <dt>Resolved at</dt>
-                <dd>{{ incident.resolvedAt }}</dd>
-              </div>
-              <div>
-                <dt>Incident key</dt>
-                <dd class="candidate-identifier candidate-breakable">{{ incident.incidentKey }}</dd>
-              </div>
-            </dl>
-          </li>
-        </ul>
-      </section>
-    </div>
+            </li>
+          </ul>
+        </dd>
+      </div>
+    </dl>
   </section>
 </template>

@@ -1,5 +1,5 @@
 /**
- * Frontend presentation model for the Sources & Connectors inventory.
+ * Frontend presentation model for the Sources connector inventory.
  * Mapped from ConnectorApiItem. Registration is composition inventory,
  * not source health, ingestion success, or TechnicalDebt.
  */

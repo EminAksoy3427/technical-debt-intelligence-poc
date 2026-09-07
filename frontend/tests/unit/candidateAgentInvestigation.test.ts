@@ -11,6 +11,7 @@ function readFrontendSource(relativePath: string): string {
 }
 
 const detailPage = readFrontendSource('pages/candidates/[id].vue')
+const tabDefs = readFrontendSource('utils/candidateDetailTabs.ts')
 const investigation = readFrontendSource(
   'components/candidate/CandidateAgentInvestigation.vue',
 )
@@ -24,6 +25,7 @@ const toolTrace = readFrontendSource('components/candidate/CandidateAgentToolTra
 const policyTrace = readFrontendSource(
   'components/candidate/CandidateAgentPolicyTrace.vue',
 )
+const display = readFrontendSource('utils/candidateDetailDisplay.ts')
 const apiClient = readFrontendSource('composables/useAgentRunApi.ts')
 
 const investigationSources = [
@@ -38,15 +40,25 @@ const investigationSources = [
 describe('Candidate Agent Investigation section', () => {
   it('is a Candidate Detail section after Evidence & Context', () => {
     expect(detailPage).toContain('CandidateAgentInvestigation')
-    expect(detailPage).toContain("id: 'candidate-agent-investigation'")
-    expect(detailPage).toContain("label: 'Agent Investigation'")
+    expect(tabDefs).toContain("id: 'investigation'")
+    expect(tabDefs).toContain("label: 'AI Investigation'")
+    expect(tabDefs).toContain("panelId: 'candidate-agent-investigation'")
     expect(detailPage).toContain(':candidateId="presentation.candidate.candidateId"')
     expect(detailPage).toContain(':evidence="presentation.evidence"')
+    expect(detailPage).toContain(':isActive="selectedTab === \'investigation\'"')
 
     const evidenceStart = detailPage.indexOf('id="candidate-evidence-context"')
     const investigationStart = detailPage.indexOf('CandidateAgentInvestigation')
     expect(evidenceStart).toBeGreaterThan(-1)
     expect(investigationStart).toBeGreaterThan(evidenceStart)
+  })
+
+  it('keeps hidden-tab mount behavior unchanged', () => {
+    expect(investigation).toContain(':hidden="!isActive"')
+    expect(investigation).toContain('role="tabpanel"')
+    expect(investigation).not.toContain('v-if="isActive"')
+    expect(detailPage).not.toContain('v-if="selectedTab')
+    expect(detailPage).toContain(':isActive="selectedTab === \'investigation\'"')
   })
 
   it('starts an investigation through POST with no prompt or control configuration', () => {
@@ -75,20 +87,42 @@ describe('Candidate Agent Investigation section', () => {
     expect(investigation).not.toContain('error.message')
   })
 
+  it('renders one human-readable status and keeps raw status in run details', () => {
+    expect(investigation).toContain('presentation.statusLabel')
+    expect(investigation).toContain('summary-label="Run details"')
+    expect(investigation).toContain('statusProvenanceRows')
+    expect(investigation).toContain("label: 'Status', value: presentation.value.status")
+    expect(investigation).not.toContain('class="candidate-identifier">{{ presentation.status }}')
+    expect(investigation).not.toContain('<h3 id="candidate-investigation-status-heading">Summary</h3>')
+  })
+
   it('renders COMPLETED as investigation completion, not validation', () => {
     expect(investigation).toContain("presentation.status === 'COMPLETED'")
     expect(investigation).toContain('The investigation completed. This is not Candidate validation.')
     expect(investigation).toContain('CandidateStructuredAssessment')
-    expect(assessment).toContain('Structured assessment')
+    expect(assessment).toContain('Assessment')
     expect(assessment).toContain('assessment.outcomeLabel')
     expect(assessment).toContain('assessment.conclusion.statement')
     expect(assessment).toContain('assessment.supportingClaims')
     expect(assessment).toContain('assessment.missingEvidence')
     expect(assessment).toContain('assessment.uncertainties')
     expect(assessment).toContain('assessment.recommendation')
-    expect(assessment).toContain('Proposed next direction')
+    expect(assessment).toContain('Recommended next steps')
+    expect(assessment).toContain('Proposed next direction, not an approved action.')
     expect(investigationSources).not.toMatch(/Candidate validated/i)
     expect(investigationSources).not.toMatch(/Investigation validated/i)
+  })
+
+  it('keeps missing evidence, uncertainties, and recommendations visible', () => {
+    expect(assessment).toContain('Evidence gaps')
+    expect(assessment).toContain('Missing evidence')
+    expect(assessment).toContain('Uncertainties')
+    expect(assessment).toContain('assessment.missingEvidence')
+    expect(assessment).toContain('assessment.uncertainties')
+    expect(assessment).toContain('Recommended next steps')
+    expect(assessment).toContain('assessment.recommendation')
+    expect(assessment).toContain('None recorded.')
+    expect(assessment).toContain('candidate-assessment-gaps-heading')
   })
 
   it('renders ABSTAINED as abstention, not rejection', () => {
@@ -103,32 +137,49 @@ describe('Candidate Agent Investigation section', () => {
     expect(investigationSources).not.toMatch(/\bRejected\b/)
   })
 
-  it('renders FAILED safely and allows another Start Investigation', () => {
+  it('renders FAILED safely and allows another investigation run', () => {
     expect(investigation).toContain("presentation.status === 'FAILED'")
     expect(investigation).toContain(
       'The investigation failed. This does not mean the Candidate is invalid.',
     )
     expect(investigation).toContain('presentation.stopReasonLabel')
     expect(investigation).toContain('Start Investigation')
+    expect(investigation).toContain('Run investigation again')
+    expect(investigation).toContain('startInvestigation')
     expect(investigation).not.toContain('retryAgentRun')
     expect(investigationSources).not.toContain('traceback')
     expect(investigationSources).not.toContain('v-html')
   })
 
-  it('renders grounding references, tool trace, and policy trace from API fields', () => {
+  it('renders grounding references with claims first and provenance available', () => {
     expect(assessment).toContain('CandidateGroundingReferences')
-    expect(grounding).toContain('Grounding references')
+    expect(assessment).toContain('Supporting findings')
+    expect(grounding).toContain('Grounded by')
     expect(grounding).toContain('reference.referenceTypeLabel')
-    expect(grounding).toContain('reference.identifier')
-    expect(toolTrace).toContain('Tool trace')
+    expect(grounding).toContain('reference.displayLabel')
+    expect(grounding).toContain('CandidateProvenanceDetails')
+    expect(grounding).toContain('reference.provenanceRows')
+    expect(grounding).not.toContain('class="candidate-identifier candidate-breakable">{{ reference.identifier }}')
+  })
+
+  it('keeps tool and policy traces accessible inside collapsed investigation details', () => {
+    expect(investigation).toContain('<summary>Investigation details</summary>')
+    expect(investigation).toContain(
+      '<details class="candidate-disclosure candidate-investigation-details">',
+    )
+    expect(investigation).not.toContain(
+      '<details class="candidate-disclosure candidate-investigation-details" open',
+    )
+    expect(toolTrace).toContain('Tool activity')
     expect(toolTrace).toContain('execution.sequenceNumber')
+    expect(toolTrace).toContain('execution.toolDisplayLabel')
     expect(toolTrace).toContain('execution.toolId')
     expect(toolTrace).toContain('execution.toolVersion')
     expect(toolTrace).toContain('execution.statusLabel')
     expect(toolTrace).toContain('execution.durationMs')
     expect(toolTrace).toContain('execution.errorCode')
     expect(toolTrace).toContain('execution.resultReferences')
-    expect(policyTrace).toContain('Policy trace')
+    expect(policyTrace).toContain('Policy decisions')
     expect(policyTrace).toContain('decision.decisionLabel')
     expect(policyTrace).toContain('decision.requestedEffect')
     expect(policyTrace).toContain('decision.requestedRisk')
@@ -140,10 +191,27 @@ describe('Candidate Agent Investigation section', () => {
 
   it('does not represent policy ALLOW as human approval', () => {
     expect(policyTrace).toContain('Policy ALLOW is not human approval.')
+    expect(policyTrace).toContain('Runtime policy allowed this tool execution.')
+    expect(policyTrace).toContain("decision.decision === 'ALLOW'")
     expect(investigationSources).not.toMatch(/Human Approved/i)
     expect(investigationSources).not.toMatch(/Human Rejected/i)
     expect(investigationSources).not.toMatch(/>Approved</)
     expect(investigationSources).not.toMatch(/>Rejected</)
+    expect(investigationSources).not.toMatch(/Governance approved/i)
+    expect(investigationSources).not.toContain('Human approved')
+  })
+
+  it('humanizes known tool names and keeps a safe unknown-tool fallback', () => {
+    expect(display).toContain('read_candidate_evidence')
+    expect(display).toContain('Read candidate evidence')
+    expect(display).toContain('read_candidate_dependency_context')
+    expect(display).toContain('Read dependency context')
+    expect(display).toContain('read_candidate_enterprise_context')
+    expect(display).toContain('Read enterprise context')
+    expect(display).toContain('formatToolDisplayLabel')
+    expect(display).toContain("toolId.split(/[-_]+/)")
+    expect(toolTrace).toContain('execution.toolDisplayLabel')
+    expect(toolTrace).toContain('execution.toolId')
   })
 
   it('does not add chat, prompt, or live-provider controls', () => {
@@ -173,5 +241,8 @@ describe('Candidate Agent Investigation section', () => {
     expect(investigationSources).not.toContain('Assign Effort')
     expect(investigationSources).not.toContain('chain-of-thought')
     expect(investigationSources).not.toContain('DATABASE_URL')
+    expect(investigationSources).not.toContain('Fix automatically')
+    expect(investigationSources).not.toContain('Accept risk')
+    expect(investigationSources).not.toMatch(/>Execute</)
   })
 })

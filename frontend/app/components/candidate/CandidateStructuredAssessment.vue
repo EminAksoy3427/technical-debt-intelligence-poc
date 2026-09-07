@@ -1,95 +1,115 @@
 <script setup lang="ts">
 import type { GroundedClaimItem, StructuredAssessmentPresentation } from '~/types/agentRun'
 
-defineProps<{
+const props = defineProps<{
   assessment: StructuredAssessmentPresentation
 }>()
 
 function claimKey(claim: GroundedClaimItem, index: number): string {
   return `${claim.statement}:${index}`
 }
+
+const recommendationItems = computed(() => {
+  if (props.assessment.recommendation == null) {
+    return []
+  }
+
+  return props.assessment.recommendation
+    .split(/\n+/)
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0)
+})
 </script>
 
 <template>
   <section
-    class="candidate-detail-section"
+    class="candidate-investigation-assessment"
     aria-labelledby="candidate-structured-assessment-heading"
   >
-    <h3 id="candidate-structured-assessment-heading">Structured assessment</h3>
-    <p class="candidate-section-introduction">
-      This assessment interprets existing evidence and context. It does not validate
-      the Candidate or authorize a lifecycle action.
+    <div class="candidate-investigation-header-row">
+      <h3 id="candidate-structured-assessment-heading">Assessment</h3>
+      <span class="badge badge--neutral">{{ assessment.outcomeLabel }}</span>
+    </div>
+
+    <p v-if="assessment.conclusion" class="candidate-assessment-summary">
+      {{ assessment.conclusion.statement }}
     </p>
-
-    <dl class="candidate-detail-list candidate-detail-list--scan">
-      <div>
-        <dt>Outcome</dt>
-        <dd>
-          <span class="badge badge--neutral">{{ assessment.outcomeLabel }}</span>
-        </dd>
-      </div>
-      <div v-if="assessment.stopReasonLabel != null">
-        <dt>Stop reason</dt>
-        <dd>{{ assessment.stopReasonLabel }}</dd>
-      </div>
-    </dl>
-
-    <section
+    <CandidateGroundingReferences
       v-if="assessment.conclusion"
-      class="candidate-detail-subsection"
-      aria-labelledby="candidate-assessment-conclusion-heading"
-    >
-      <h4 id="candidate-assessment-conclusion-heading">Conclusion</h4>
-      <p class="candidate-correlation-rationale">{{ assessment.conclusion.statement }}</p>
-      <CandidateGroundingReferences :references="assessment.conclusion.references" />
-    </section>
+      :references="assessment.conclusion.references"
+    />
+    <p v-else class="candidate-empty-value">No supported conclusion was returned.</p>
 
     <section
       v-if="assessment.supportingClaims.length > 0"
-      class="candidate-detail-subsection"
+      class="candidate-investigation-subsection"
       aria-labelledby="candidate-assessment-claims-heading"
     >
-      <h4 id="candidate-assessment-claims-heading">Supporting claims</h4>
-      <ul class="candidate-membership-list candidate-membership-list--cards">
-        <li v-for="(claim, index) in assessment.supportingClaims" :key="claimKey(claim, index)">
-          <p class="candidate-fact-primary">{{ claim.statement }}</p>
+      <h4 id="candidate-assessment-claims-heading">Supporting findings</h4>
+      <ul class="candidate-record-list">
+        <li
+          v-for="(claim, index) in assessment.supportingClaims"
+          :key="claimKey(claim, index)"
+          class="candidate-finding"
+        >
+          <p class="candidate-record-kicker">Finding</p>
+          <p class="candidate-finding-statement">{{ claim.statement }}</p>
           <CandidateGroundingReferences :references="claim.references" />
         </li>
       </ul>
     </section>
 
     <section
-      v-if="assessment.missingEvidence.length > 0"
-      class="candidate-detail-subsection"
-      aria-labelledby="candidate-assessment-missing-heading"
+      class="candidate-investigation-subsection"
+      aria-labelledby="candidate-assessment-gaps-heading"
     >
-      <h4 id="candidate-assessment-missing-heading">Missing evidence</h4>
-      <ul class="candidate-investigation-note-list">
-        <li v-for="item in assessment.missingEvidence" :key="item">{{ item }}</li>
-      </ul>
+      <h4 id="candidate-assessment-gaps-heading">Evidence gaps</h4>
+      <div class="candidate-evidence-gaps">
+        <section aria-labelledby="candidate-assessment-missing-heading">
+          <h5 id="candidate-assessment-missing-heading" class="candidate-gaps-heading">
+            Missing evidence
+          </h5>
+          <ul
+            v-if="assessment.missingEvidence.length > 0"
+            class="candidate-investigation-note-list"
+          >
+            <li v-for="item in assessment.missingEvidence" :key="item">{{ item }}</li>
+          </ul>
+          <p v-else class="candidate-empty-value">None recorded.</p>
+        </section>
+        <section aria-labelledby="candidate-assessment-uncertainties-heading">
+          <h5 id="candidate-assessment-uncertainties-heading" class="candidate-gaps-heading">
+            Uncertainties
+          </h5>
+          <ul
+            v-if="assessment.uncertainties.length > 0"
+            class="candidate-investigation-note-list"
+          >
+            <li v-for="item in assessment.uncertainties" :key="item">{{ item }}</li>
+          </ul>
+          <p v-else class="candidate-empty-value">None recorded.</p>
+        </section>
+      </div>
     </section>
 
     <section
-      v-if="assessment.uncertainties.length > 0"
-      class="candidate-detail-subsection"
-      aria-labelledby="candidate-assessment-uncertainties-heading"
-    >
-      <h4 id="candidate-assessment-uncertainties-heading">Uncertainties</h4>
-      <ul class="candidate-investigation-note-list">
-        <li v-for="item in assessment.uncertainties" :key="item">{{ item }}</li>
-      </ul>
-    </section>
-
-    <section
-      v-if="assessment.recommendation != null"
-      class="candidate-detail-subsection"
+      class="candidate-investigation-subsection"
       aria-labelledby="candidate-assessment-recommendation-heading"
     >
-      <h4 id="candidate-assessment-recommendation-heading">Proposed next direction</h4>
-      <p class="candidate-section-introduction">
-        This is a proposed next direction, not an approved action.
+      <h4 id="candidate-assessment-recommendation-heading">Recommended next steps</h4>
+      <p v-if="recommendationItems.length > 0" class="candidate-section-note">
+        Proposed next direction, not an approved action.
       </p>
-      <p class="candidate-correlation-rationale">{{ assessment.recommendation }}</p>
+      <ol
+        v-if="recommendationItems.length > 1"
+        class="candidate-recommendation-list"
+      >
+        <li v-for="item in recommendationItems" :key="item">{{ item }}</li>
+      </ol>
+      <p v-else-if="recommendationItems.length === 1" class="candidate-recommendation-text">
+        {{ recommendationItems[0] }}
+      </p>
+      <p v-else class="candidate-empty-value">None recorded.</p>
     </section>
   </section>
 </template>

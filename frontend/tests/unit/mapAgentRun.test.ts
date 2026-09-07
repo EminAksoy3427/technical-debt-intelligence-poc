@@ -121,6 +121,8 @@ describe('toAgentInvestigationPresentation', () => {
       identifier: EVIDENCE_ID,
       relatedLabel: 'evidence:member-earlier',
     })
+    expect(presentation.toolExecutions[0]?.toolDisplayLabel).toBe('Read candidate evidence')
+    expect(presentation.toolExecutions[1]?.toolDisplayLabel).toBe('Read dependency context')
     expect(JSON.stringify(presentation.toolExecutions)).not.toContain('arguments')
     expect(JSON.stringify(presentation.toolExecutions)).not.toContain('input_hash')
     expect(JSON.stringify(presentation.toolExecutions)).not.toContain('safe_input_summary')
@@ -132,11 +134,16 @@ describe('toAgentInvestigationPresentation', () => {
 
     expect(decision?.decision).toBe('ALLOW')
     expect(decision?.decisionLabel).toBe('Policy allowed tool execution')
+    expect(decision?.decisionStatusLabel).toBe('Allowed')
     expect(decision?.decisionLabel).not.toMatch(/human approved/i)
     expect(decision?.decisionLabel).not.toMatch(/approved/i)
+    expect(decision?.decisionStatusLabel).not.toMatch(/approved/i)
     expect(decision?.requestedEffect).toBe('READ')
+    expect(decision?.requestedEffectLabel).toBe('Read')
     expect(decision?.requestedRisk).toBe('LOW')
+    expect(decision?.requestedRiskLabel).toBe('Low')
     expect(decision?.requiredScopes).toEqual(['candidate:read'])
+    expect(decision?.toolDisplayLabel).toBe('Read candidate evidence')
   })
 
   it('reuses Candidate Evidence source references when the ID is already on the page', () => {
@@ -149,12 +156,22 @@ describe('toAgentInvestigationPresentation', () => {
       referenceTypeLabel: 'Evidence',
       identifier: EVIDENCE_ID,
       relatedLabel: 'evidence:member-earlier',
+      displayLabel: 'Candidate Api Test',
+      provenanceSummaryLabel: 'View evidence details',
     })
+    expect(evidenceReference?.provenanceRows).toEqual(
+      expect.arrayContaining([
+        { label: 'Evidence ID', value: EVIDENCE_ID },
+        { label: 'Source reference', value: 'evidence:member-earlier' },
+      ]),
+    )
     expect(toolReference).toMatchObject({
       referenceType: 'TOOL_EXECUTION',
       referenceTypeLabel: 'Tool execution',
       identifier: SECOND_TOOL_EXECUTION_ID,
       relatedLabel: 'read_candidate_dependency_context · sequence 2',
+      displayLabel: 'Read dependency context',
+      provenanceSummaryLabel: 'View tool execution details',
     })
   })
 
@@ -177,6 +194,7 @@ describe('toAgentInvestigationPresentation', () => {
     expect(presentation.assessment?.conclusion?.references[0]).toMatchObject({
       identifier: UNKNOWN_EVIDENCE_ID,
       relatedLabel: null,
+      displayLabel: null,
     })
   })
 
@@ -264,7 +282,30 @@ describe('toAgentInvestigationPresentation', () => {
     expect(presentation.policyDecisions[0]?.decisionLabel).toBe(
       'Policy denied tool execution',
     )
+    expect(presentation.policyDecisions[0]?.decisionStatusLabel).toBe('Denied')
     expect(presentation.policyDecisions[0]?.decisionLabel).not.toMatch(/human rejected/i)
     expect(presentation.policyDecisions[0]?.decisionLabel).not.toMatch(/rejected/i)
+    expect(presentation.policyDecisions[0]?.decisionStatusLabel).not.toMatch(/rejected/i)
+  })
+
+  it('humanizes unknown snake_case tool names without requiring a hardcoded mapping', () => {
+    const run = completedRun()
+    run.tool_executions = [
+      {
+        tool_execution_id: TOOL_EXECUTION_ID,
+        sequence_number: 1,
+        tool_id: 'inspect_runtime_graph',
+        tool_version: '1.0.0',
+        status: 'SUCCEEDED',
+        duration_ms: 3,
+        error_code: null,
+        error_message: null,
+        result_references: [],
+      },
+    ]
+
+    const presentation = toAgentInvestigationPresentation(run, pageEvidence)
+    expect(presentation.toolExecutions[0]?.toolId).toBe('inspect_runtime_graph')
+    expect(presentation.toolExecutions[0]?.toolDisplayLabel).toBe('Inspect runtime graph')
   })
 })

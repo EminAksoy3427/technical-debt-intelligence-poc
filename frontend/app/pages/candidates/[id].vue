@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import {
-  candidateAssetCriticalityLabels,
-  candidateAssetLifecycleStatusLabels,
-  candidatePoolAssetTypeLabels,
-} from '~/types/candidate'
 import { toCandidateDetailPresentation } from '~/utils/mapCandidateDetail'
+import {
+  parseCandidateDetailTab,
+  type CandidateDetailTabId,
+} from '~/utils/candidateDetailTabs'
 import { resolveCandidateDetailViewState } from '~/utils/resolveCandidateDetailViewState'
+import { resolveCandidatePresentationTitle } from '~/utils/resolveCandidatePresentationTitle'
 
 const route = useRoute()
+const router = useRouter()
 const { getCandidate } = useCandidateApi()
 
 const candidateId = computed(() => String(route.params.id ?? ''))
+const selectedTab = computed(() => parseCandidateDetailTab(route.query.tab))
 
 const { data, pending, error, refresh } = await useAsyncData(
   () => `candidate-detail:${candidateId.value}`,
@@ -35,136 +37,147 @@ const presentation = computed(() => {
   return toCandidateDetailPresentation(data.value)
 })
 
-const implementedCandidateDetailSections = [
-  { id: 'candidate-overview', label: 'Overview' },
-  { id: 'candidate-evidence-context', label: 'Evidence & Context' },
-  { id: 'candidate-agent-investigation', label: 'Agent Investigation' },
-  { id: 'candidate-human-validation', label: 'Human Validation' },
-] as const
+const presentationTitle = computed(() => {
+  if (presentation.value == null) {
+    return null
+  }
+
+  return resolveCandidatePresentationTitle({
+    hypothesis: presentation.value.candidate.hypothesis,
+    signalTypes: presentation.value.signals.map((signal) => signal.signalType),
+  })
+})
+
+function selectTab(tab: CandidateDetailTabId): void {
+  if (tab === selectedTab.value && typeof route.query.tab === 'string') {
+    return
+  }
+
+  router.replace({
+    query: {
+      ...route.query,
+      tab,
+    },
+  })
+}
 </script>
 
 <template>
   <section class="page-section candidate-detail" aria-labelledby="candidate-title">
-    <NuxtLink to="/candidates" class="back-link">Back to Candidate Pool</NuxtLink>
-
     <template v-if="viewState === 'loading'">
-      <p class="eyebrow">Candidate</p>
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/candidates">Candidates</NuxtLink>
+          </li>
+          <li aria-current="page">Candidate</li>
+        </ol>
+      </nav>
       <h1 id="candidate-title">Candidate</h1>
       <p class="candidate-detail-message" role="status">Loading candidate details.</p>
     </template>
 
     <template v-else-if="viewState === 'not-found'">
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/candidates">Candidates</NuxtLink>
+          </li>
+          <li aria-current="page">Candidate</li>
+        </ol>
+      </nav>
       <h1 id="candidate-title">Candidate was not found.</h1>
       <p class="page-introduction">The requested Candidate does not exist.</p>
+      <p class="candidate-detail-actions">
+        <NuxtLink to="/candidates" class="button button--secondary">
+          Back to Candidates
+        </NuxtLink>
+      </p>
     </template>
 
     <template v-else-if="viewState === 'invalid-identifier'">
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/candidates">Candidates</NuxtLink>
+          </li>
+          <li aria-current="page">Candidate</li>
+        </ol>
+      </nav>
       <h1 id="candidate-title">The Candidate identifier is invalid.</h1>
       <p class="page-introduction">The requested Candidate identifier is not a valid Candidate ID.</p>
+      <p class="candidate-detail-actions">
+        <NuxtLink to="/candidates" class="button button--secondary">
+          Back to Candidates
+        </NuxtLink>
+      </p>
     </template>
 
     <template v-else-if="viewState === 'error'">
+      <nav class="candidate-breadcrumb" aria-label="Breadcrumb">
+        <ol>
+          <li>
+            <NuxtLink to="/candidates">Candidates</NuxtLink>
+          </li>
+          <li aria-current="page">Candidate</li>
+        </ol>
+      </nav>
       <h1 id="candidate-title">Candidate details could not be loaded.</h1>
       <p class="page-introduction">Candidate details could not be loaded. Try again later.</p>
+      <p class="candidate-detail-actions">
+        <NuxtLink to="/candidates" class="button button--secondary">
+          Back to Candidates
+        </NuxtLink>
+      </p>
     </template>
 
-    <template v-else-if="presentation">
-      <nav class="candidate-section-nav" aria-label="Candidate sections">
-        <ul class="candidate-section-nav-list">
-          <li v-for="section in implementedCandidateDetailSections" :key="section.id">
-            <a class="candidate-section-nav-link" :href="`#${section.id}`">{{ section.label }}</a>
-          </li>
-        </ul>
-      </nav>
+    <template v-else-if="presentation && presentationTitle">
+      <CandidateDetailHeader
+        :title="presentationTitle.title"
+        :canonical-problem-type="presentationTitle.canonicalProblemType"
+        :candidate="presentation.candidate"
+        :asset="presentation.enterpriseContext.asset"
+        :governance="presentation.governance"
+      />
 
-      <section
+      <CandidateDetailTabs :selected-tab="selectedTab" @select="selectTab" />
+
+      <div
         id="candidate-overview"
-        class="candidate-detail-region"
-        aria-labelledby="candidate-overview-heading"
+        class="candidate-detail-panel"
+        role="tabpanel"
+        aria-labelledby="candidate-tab-overview"
+        :hidden="selectedTab !== 'overview'"
       >
-        <p id="candidate-overview-heading" class="candidate-region-heading">Overview</p>
-
-        <header class="candidate-summary">
-          <p class="eyebrow">Candidate</p>
-          <h1 id="candidate-title">{{ presentation.candidate.hypothesis }}</h1>
-          <p class="candidate-identifier">
-            <span class="candidate-id-label">Candidate ID</span>
-            {{ presentation.candidate.candidateId }}
-          </p>
-          <p class="candidate-summary-note">
-            This is a Candidate, not validated TechnicalDebt.
-          </p>
-
-          <dl class="candidate-summary-facts">
-            <div>
-              <dt>Affected asset</dt>
-              <dd>
-                <span class="candidate-asset-name">{{ presentation.candidate.assetDisplayName }}</span>
-                <span class="badge badge--neutral">{{
-                  candidatePoolAssetTypeLabels[presentation.candidate.canonicalAssetType]
-                }}</span>
-                <span class="candidate-identifier">{{ presentation.candidate.canonicalAssetKey }}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Asset criticality</dt>
-              <dd>
-                <span class="badge badge--neutral">{{
-                  candidateAssetCriticalityLabels[presentation.enterpriseContext.asset.criticality]
-                }}</span>
-              </dd>
-            </div>
-            <div>
-              <dt>Asset lifecycle status</dt>
-              <dd>
-                <span class="badge badge--neutral">{{
-                  candidateAssetLifecycleStatusLabels[presentation.enterpriseContext.asset.lifecycleStatus]
-                }}</span>
-              </dd>
-            </div>
-          </dl>
-        </header>
-
-        <section class="candidate-detail-section" aria-labelledby="candidate-correlation-heading">
-          <h2 id="candidate-correlation-heading">Correlation rationale</h2>
-          <p class="candidate-section-introduction">
-            System-generated deterministic correlation context. This is not validation.
-          </p>
-          <p class="candidate-correlation-rationale">{{ presentation.candidate.correlationRationale }}</p>
-        </section>
-      </section>
-
-      <section
-        id="candidate-evidence-context"
-        class="candidate-detail-region"
-        aria-labelledby="candidate-evidence-context-heading"
-      >
-        <h2 id="candidate-evidence-context-heading" class="candidate-region-heading">
-          Evidence &amp; Context
-        </h2>
-
-        <div class="layout-columns candidate-detail-columns">
-          <CandidateEvidenceList :evidence="presentation.evidence" />
-          <CandidateSignalList :signals="presentation.signals" />
-        </div>
-
-        <CandidateEnterpriseContext
-          :asset="presentation.enterpriseContext.asset"
-          :ownerships="presentation.enterpriseContext.ownerships"
-          :relationships="presentation.enterpriseContext.relationships"
-          :incidents="presentation.enterpriseContext.incidents"
+        <CandidateOverviewTab
+          :presentation="presentation"
+          :problem-label="presentationTitle.title"
+          @select-investigation="selectTab('investigation')"
         />
-        <CandidateDependencyContext :dependencyContext="presentation.dependencyContext" />
-      </section>
+      </div>
+
+      <div
+        id="candidate-evidence-context"
+        class="candidate-detail-panel"
+        role="tabpanel"
+        aria-labelledby="candidate-tab-evidence"
+        :hidden="selectedTab !== 'evidence'"
+      >
+        <CandidateEvidenceContextTab :presentation="presentation" />
+      </div>
 
       <CandidateAgentInvestigation
         :candidateId="presentation.candidate.candidateId"
         :evidence="presentation.evidence"
+        :isActive="selectedTab === 'investigation'"
       />
       <CandidateHumanValidation
         :candidateId="presentation.candidate.candidateId"
+        :candidateTitle="presentationTitle.title"
+        :evidenceCount="presentation.evidence.length"
         :governance="presentation.governance"
         :refreshCandidate="refresh"
+        :isActive="selectedTab === 'validation'"
       />
     </template>
   </section>

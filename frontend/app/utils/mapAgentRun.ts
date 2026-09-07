@@ -12,6 +12,7 @@ import {
   agentRunStopReasonLabels,
   assessmentOutcomeLabels,
   policyDecisionLabels,
+  policyDecisionStatusLabels,
   toolExecutionStatusLabels,
 } from '../types/agentRun'
 import type {
@@ -24,6 +25,11 @@ import type {
   StructuredAssessmentResponse,
   ToolExecutionResponse,
 } from '../types/agentRunApi'
+import {
+  formatEvidenceGroundingLabel,
+  formatToolDisplayLabel,
+  formatUppercaseEnumLabel,
+} from './candidateDetailDisplay'
 
 export function toAgentInvestigationPresentation(
   run: AgentRunResponse,
@@ -53,7 +59,9 @@ export function toAgentInvestigationPresentation(
       toolExecutionsById,
     ),
     toolExecutions,
-    policyDecisions: run.policy_decisions.map(toPolicyDecisionItem),
+    policyDecisions: run.policy_decisions.map((decision) =>
+      toPolicyDecisionItem(decision, toolExecutionsById),
+    ),
   }
 }
 
@@ -112,6 +120,7 @@ function toToolExecutionItem(
     sequenceNumber: execution.sequence_number,
     toolId: execution.tool_id,
     toolVersion: execution.tool_version,
+    toolDisplayLabel: formatToolDisplayLabel(execution.tool_id),
     status: execution.status,
     statusLabel: toolExecutionStatusLabels[execution.status],
     durationMs: execution.duration_ms,
@@ -127,17 +136,26 @@ function toToolExecutionItem(
   }
 }
 
-function toPolicyDecisionItem(decision: PolicyDecisionResponse): PolicyDecisionItem {
+function toPolicyDecisionItem(
+  decision: PolicyDecisionResponse,
+  toolExecutionsById: ReadonlyMap<string, ToolExecutionItem>,
+): PolicyDecisionItem {
+  const execution = toolExecutionsById.get(decision.tool_execution_id)
   return {
     toolExecutionId: decision.tool_execution_id,
     decision: decision.decision,
     decisionLabel: policyDecisionLabels[decision.decision],
+    decisionStatusLabel: policyDecisionStatusLabels[decision.decision],
     requestedEffect: decision.requested_effect,
+    requestedEffectLabel: formatUppercaseEnumLabel(decision.requested_effect),
     requestedRisk: decision.requested_risk,
+    requestedRiskLabel: formatUppercaseEnumLabel(decision.requested_risk),
     requiredScopes: [...decision.required_scopes],
     ruleId: decision.rule_id,
     reasonCode: decision.reason_code,
     decidedAt: decision.decided_at,
+    toolId: execution?.toolId ?? null,
+    toolDisplayLabel: execution?.toolDisplayLabel ?? null,
   }
 }
 
@@ -152,6 +170,14 @@ function toGroundingReferenceItem(
   }
 
   const execution = toolExecutionsById.get(reference.tool_execution_id)
+  const provenanceRows = [{ label: 'Tool execution ID', value: reference.tool_execution_id }]
+  if (execution != null) {
+    provenanceRows.push(
+      { label: 'Tool', value: execution.toolId },
+      { label: 'Sequence', value: String(execution.sequenceNumber) },
+    )
+  }
+
   return {
     key,
     referenceType: 'TOOL_EXECUTION',
@@ -159,6 +185,9 @@ function toGroundingReferenceItem(
     identifier: reference.tool_execution_id,
     relatedLabel:
       execution == null ? null : `${execution.toolId} · sequence ${execution.sequenceNumber}`,
+    displayLabel: execution?.toolDisplayLabel ?? null,
+    provenanceRows,
+    provenanceSummaryLabel: 'View tool execution details',
   }
 }
 
@@ -168,12 +197,29 @@ function toEvidenceReferenceItem(
   key: string,
 ): GroundingReferenceItem {
   const evidence = evidenceById.get(reference.evidence_id)
+  const provenanceRows = [{ label: 'Evidence ID', value: reference.evidence_id }]
+  if (evidence != null) {
+    provenanceRows.push(
+      { label: 'Source system', value: evidence.sourceSystem },
+      { label: 'Source reference', value: evidence.sourceReference },
+    )
+  }
+
   return {
     key,
     referenceType: 'EVIDENCE',
     referenceTypeLabel: 'Evidence',
     identifier: reference.evidence_id,
     relatedLabel: evidence?.sourceReference ?? null,
+    displayLabel:
+      evidence == null
+        ? null
+        : formatEvidenceGroundingLabel({
+            sourceSystem: evidence.sourceSystem,
+            sourceReference: evidence.sourceReference,
+          }),
+    provenanceRows,
+    provenanceSummaryLabel: 'View evidence details',
   }
 }
 

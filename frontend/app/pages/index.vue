@@ -1,7 +1,7 @@
 <script setup lang="ts">
-await navigateTo('/candidates')
+await navigateTo('/overview')
 </script>
 
 <template>
-  <p>Redirecting to Candidates…</p>
+  <p>Redirecting to Overview…</p>
 </template>

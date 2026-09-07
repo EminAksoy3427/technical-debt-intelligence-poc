@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { toTechnicalDebtListItem } from '~/utils/mapTechnicalDebt'
 import { resolveTechnicalDebtPortfolioViewState } from '~/utils/resolveTechnicalDebtPortfolioViewState'
+import { technicalDebtInventoryCountLabel } from '~/utils/technicalDebtDisplay'
+import {
+  technicalDebtsInventoryEmptyExplanation,
+  technicalDebtsInventoryEmptyTitle,
+  technicalDebtsInventoryError,
+  technicalDebtsInventoryLoading,
+  technicalDebtsPageDistinction,
+  technicalDebtsPageIntroduction,
+  technicalDebtsPageTitle,
+  technicalDebtsReviewCandidatesLabel,
+} from '~/utils/technicalDebtPageCopy'
 
 const { listTechnicalDebts } = useTechnicalDebtApi()
 
@@ -21,59 +32,58 @@ const viewState = computed(() =>
   }),
 )
 
-const displayedCountLabel = computed(() => {
-  const count = technicalDebts.value.length
-  const noun = count === 1 ? 'TechnicalDebt' : 'TechnicalDebts'
-  return `${count} ${noun} displayed`
-})
+const displayedCountLabel = computed(() =>
+  technicalDebtInventoryCountLabel(technicalDebts.value.length),
+)
 </script>
 
 <template>
-  <section class="page-section" aria-labelledby="technical-debts-title">
-    <header class="page-header">
-      <p class="eyebrow">Technical Debt Governance</p>
-      <h1 id="technical-debts-title">Technical Debts</h1>
-      <p class="page-introduction">
-        REGISTERED TechnicalDebt records created by a human VALIDATE decision.
-        This portfolio is not a remediation plan.
-      </p>
+  <section
+    class="page-section technical-debt-inventory"
+    aria-labelledby="technical-debts-title"
+  >
+    <header class="page-header page-header--queue">
+      <h1 id="technical-debts-title">{{ technicalDebtsPageTitle }}</h1>
+      <p class="page-introduction">{{ technicalDebtsPageIntroduction }}</p>
+      <p class="technical-debt-header-note">{{ technicalDebtsPageDistinction }}</p>
     </header>
 
-    <div class="candidate-pool">
-      <div class="candidate-pool-heading">
-        <div class="candidate-pool-heading-copy">
-          <h2>TechnicalDebt portfolio</h2>
-          <p>Validated structural issues. Candidates remain the source of evidence.</p>
-        </div>
-        <p
-          v-if="viewState === 'ready'"
-          class="candidate-pool-result-count"
-        >
-          {{ displayedCountLabel }}
-        </p>
-      </div>
+    <p v-if="viewState === 'loading'" class="technical-debt-status" role="status">
+      {{ technicalDebtsInventoryLoading }}
+    </p>
 
-      <p class="candidate-pool-note">
-        TechnicalDebt is created only after Human Validation. REGISTERED is not
-        approval of remediation work.
+    <div
+      v-else-if="viewState === 'error'"
+      class="technical-debt-status"
+      role="alert"
+    >
+      <p>{{ technicalDebtsInventoryError }}</p>
+      <p>
+        <NuxtLink to="/candidates" class="button button--secondary">
+          {{ technicalDebtsReviewCandidatesLabel }}
+        </NuxtLink>
       </p>
-
-      <p v-if="viewState === 'loading'" class="candidate-pool-status" role="status">
-        Loading Technical Debts.
-      </p>
-
-      <p v-else-if="viewState === 'error'" class="candidate-pool-status" role="alert">
-        Technical Debts could not be loaded.
-      </p>
-
-      <p v-else-if="viewState === 'empty'" class="candidate-pool-status" role="status">
-        No validated TechnicalDebt records exist yet.
-      </p>
-
-      <TechnicalDebtPortfolioTable
-        v-else-if="viewState === 'ready'"
-        :technicalDebts="technicalDebts"
-      />
     </div>
+
+    <div
+      v-else-if="viewState === 'empty'"
+      class="technical-debt-status technical-debt-empty"
+      role="status"
+    >
+      <p>{{ technicalDebtsInventoryEmptyTitle }}</p>
+      <p class="technical-debt-empty-explanation">
+        {{ technicalDebtsInventoryEmptyExplanation }}
+      </p>
+      <p>
+        <NuxtLink to="/candidates" class="button button--secondary">
+          {{ technicalDebtsReviewCandidatesLabel }}
+        </NuxtLink>
+      </p>
+    </div>
+
+    <template v-else-if="viewState === 'ready'">
+      <p class="technical-debt-result-count">{{ displayedCountLabel }}</p>
+      <TechnicalDebtPortfolioTable :technicalDebts="technicalDebts" />
+    </template>
   </section>
 </template>

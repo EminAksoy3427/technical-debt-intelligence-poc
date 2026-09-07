@@ -20,6 +20,7 @@ import type {
 export interface CandidateListItem {
   id: string
   title: string
+  presentationTitle: string
   assetName: string
   assetType: AssetType
   signalCount: number
@@ -30,6 +31,14 @@ export const candidatePoolAssetTypeLabels: Record<AssetType, string> = {
   APPLICATION: 'Application',
   SERVICE: 'Service',
   REPOSITORY: 'Repository',
+}
+
+export function candidateAssetTypeDisplayLabel(assetType: string): string {
+  if (Object.prototype.hasOwnProperty.call(candidatePoolAssetTypeLabels, assetType)) {
+    return candidatePoolAssetTypeLabels[assetType as AssetType]
+  }
+
+  return assetType
 }
 
 export const candidateAssetCriticalityLabels: Record<AssetCriticality, string> = {
@@ -61,6 +70,18 @@ export const candidateIncidentSeverityLabels: Record<IncidentSeverity, string> =
   MEDIUM: 'Medium',
   HIGH: 'High',
   CRITICAL: 'Critical',
+}
+
+/**
+ * Presentation-only labels for known canonical problem/signal types.
+ * These do not change backend values and must not be used when no safe mapping exists.
+ */
+export const candidateProblemTypeLabels: Record<string, string> = {
+  HARDCODED_ENDPOINT: 'Hard-coded endpoint',
+  MISSING_TIMEOUT: 'Missing network timeout',
+  PROCESS_LOCAL_STATE: 'Process-local mutable state',
+  RECURRING_INCIDENT_PATTERN: 'Recurring incident pattern',
+  SATD_COMMENT_ADDED: 'Self-admitted technical debt comment',
 }
 
 /**

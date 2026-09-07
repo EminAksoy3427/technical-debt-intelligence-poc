@@ -2,7 +2,7 @@ import type { AssetType } from './candidateApi'
 import type { HumanDecisionType, TechnicalDebtLifecycleStatus } from './humanValidationApi'
 
 /**
- * Portfolio presentation for one persisted TechnicalDebt.
+ * Inventory presentation for one persisted TechnicalDebt.
  * This is not risk, effort, ownership, or remediation status.
  */
 export interface TechnicalDebtListItem {

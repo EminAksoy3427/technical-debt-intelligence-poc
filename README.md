@@ -9,8 +9,8 @@ and a Candidate is not validated TechnicalDebt.
 The implementation is a **layered modular monolith** with deterministic
 multi-source ingestion and Candidate correlation, persisted enterprise context,
 a governed Agent Investigation plane, a Human Validation command plane that can
-register TechnicalDebt, and Nuxt workspaces for Candidates, Technical Debts,
-and Sources & Connectors.
+register TechnicalDebt, and Nuxt workspaces for Overview, Candidates, Technical
+Debts, and Sources.
 
 ```text
 Sources → adapters → source-specific normalization → NormalizedSignal
@@ -104,10 +104,19 @@ produces an explicit error; there is no runtime mock fallback.
 
 Current API routes include Candidate reads and AgentRun, Human Validation
 `POST /api/v1/candidates/{candidate_id}/human-decisions`, TechnicalDebt
-list/detail, connectors, and health. Current frontend routes: `/candidates`,
-`/candidates/[id]`, `/technical-debts`, `/technical-debts/[id]`, and `/sources`.
-`/` redirects to `/candidates`. Detailed executable contracts are served
-at `/openapi.json` and browsable at `/docs` on the running FastAPI app.
+list/detail, connectors, and health. Current frontend routes: `/overview`
+(product landing), `/candidates` (Candidate review queue), `/candidates/[id]`
+(Overview, Evidence & Context, AI Investigation as decision support, and
+Human Validation as the authoritative governance boundary),
+`/technical-debts` (governed TechnicalDebt records created through VALIDATE),
+`/technical-debts/[id]` (governed record detail and provenance), and
+`/sources` (registered connector inventory and implemented Signal ingestion
+capabilities). Registration is not runtime health, and the Connector Registry
+is not 1:1 with Signal ingestion. Semgrep, Git SATD, Incident management, and
+Dependency lifecycle currently produce NormalizedSignal; GitHub Issues is
+acquisition-only. `/` redirects to `/overview`. Detailed
+executable contracts are served at `/openapi.json` and browsable at `/docs`
+on the running FastAPI app.
 
 ## Deeper documentation
 

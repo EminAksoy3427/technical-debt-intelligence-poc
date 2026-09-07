@@ -17,11 +17,16 @@ function headingAndLabelText(source: string): string {
 }
 
 const detailPage = readFrontendSource('pages/candidates/[id].vue')
+const header = readFrontendSource('components/candidate/CandidateDetailHeader.vue')
+const display = readFrontendSource('utils/candidateDetailDisplay.ts')
 const enterpriseContext = readFrontendSource(
   'components/candidate/CandidateEnterpriseContext.vue',
 )
 const dependencyContext = readFrontendSource(
   'components/candidate/CandidateDependencyContext.vue',
+)
+const dependencyAssetList = readFrontendSource(
+  'components/candidate/CandidateDependencyAssetList.vue',
 )
 const mapper = readFrontendSource('utils/mapCandidateDetail.ts')
 const agentInvestigation = readFrontendSource(
@@ -58,6 +63,7 @@ describe('Candidate Detail D2 semantic copy', () => {
   it('does not label ownership, risk, causality, or impact with misleading phrases', () => {
     const labels = [
       headingAndLabelText(detailPage),
+      headingAndLabelText(header),
       headingAndLabelText(enterpriseContext),
       headingAndLabelText(dependencyContext),
       headingAndLabelText(agentInvestigation),
@@ -72,11 +78,16 @@ describe('Candidate Detail D2 semantic copy', () => {
   })
 
   it('labels criticality as asset criticality and lifecycle as asset lifecycle', () => {
-    expect(detailPage).toContain('Asset criticality')
-    expect(detailPage).toContain('Asset lifecycle status')
-    expect(detailPage).toContain('This is a Candidate, not validated TechnicalDebt.')
+    expect(header).toContain('Asset criticality')
+    expect(header).toContain('Asset lifecycle status')
+    expect(header).toContain('candidateAssetCriticalityLabels[asset.criticality]')
+    expect(header).toContain('candidateAssetLifecycleStatusLabels[asset.lifecycleStatus]')
+    expect(header).toContain('candidateGovernanceDistinctionNotice')
+    expect(display).toContain('Not TechnicalDebt.')
+    expect(display).toContain('Candidate awaiting human validation.')
+    expect(headingAndLabelText(header)).not.toContain('Candidate risk')
+    expect(headingAndLabelText(header)).not.toContain('Technical debt risk')
     expect(headingAndLabelText(detailPage)).not.toContain('Candidate risk')
-    expect(headingAndLabelText(detailPage)).not.toContain('Technical debt risk')
   })
 
   it('labels ownership as enterprise asset ownership', () => {
@@ -84,7 +95,7 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(enterpriseContext).toContain(
       'These records describe ownership of the enterprise asset, not validated TechnicalDebt ownership.',
     )
-    expect(enterpriseContext).toContain('No enterprise ownership records are available.')
+    expect(enterpriseContext).toContain('None recorded.')
   })
 
   it('presents relationships as recorded structure without causality claims', () => {
@@ -92,7 +103,7 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(enterpriseContext).toContain(
       'Relationships describe recorded enterprise structure; they do not establish Candidate causality.',
     )
-    expect(enterpriseContext).toContain('No direct relationships are recorded.')
+    expect(enterpriseContext).toContain('None recorded.')
     expect(enterpriseContext).not.toContain('will fail')
   })
 
@@ -102,7 +113,7 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(enterpriseContext).toContain(
       'Incidents are associated operational context and do not prove that this Candidate caused them.',
     )
-    expect(enterpriseContext).toContain('No direct incidents are recorded.')
+    expect(enterpriseContext).toContain('None recorded.')
     expect(enterpriseContext).not.toContain('active outage')
     expect(enterpriseContext).not.toContain('Still ongoing')
   })
@@ -115,18 +126,15 @@ describe('Candidate Detail D2 semantic copy', () => {
     expect(dependencyContext).toContain(
       'Reachability represents graph connectivity and does not imply guaranteed operational impact or outage.',
     )
-    expect(dependencyContext).toContain('No dependency anchors are recorded.')
-    expect(dependencyContext).toContain('No direct dependencies are recorded.')
-    expect(dependencyContext).toContain('No direct dependents are recorded.')
-    expect(dependencyContext).toContain('No reachable dependents are recorded.')
+    expect(dependencyAssetList).toContain('None recorded.')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Impacted systems')
     expect(headingAndLabelText(dependencyContext)).not.toContain('Blast radius')
   })
 
   it('keeps Human Validation copy distinct from approval, risk, and ownership', () => {
-    expect(humanValidation).toContain('not L4 approval')
+    expect(humanValidation).toContain('HUMAN_VALIDATION_DISTINCTION')
     expect(humanValidation).toContain('Audit actor')
-    expect(humanValidation).toContain('View Technical Debt')
+    expect(humanValidation).toContain('Open TechnicalDebt record')
     expect(headingAndLabelText(humanValidation)).not.toContain('Approve')
     expect(headingAndLabelText(humanValidation)).not.toContain('Risk score')
     expect(headingAndLabelText(humanValidation)).not.toContain('TechnicalDebt owner')

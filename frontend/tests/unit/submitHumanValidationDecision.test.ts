@@ -53,8 +53,9 @@ describe('classifyHumanValidationError', () => {
 describe('humanValidationSubmitMessage', () => {
   it('uses a conflict message that requires refresh rather than retry', () => {
     expect(humanValidationSubmitMessage('conflict')).toBe(
-      'The governance state changed. Refreshing the latest decision history.',
+      'This Candidate changed since you started reviewing. The latest state has been refreshed. Review it before recording a decision.',
     )
+    expect(humanValidationSubmitMessage('conflict')).not.toContain('409')
     expect(humanValidationSubmitMessage('unavailable')).toBe('Human Validation is not available.')
   })
 
@@ -64,7 +65,7 @@ describe('humanValidationSubmitMessage', () => {
     )
     expect(humanValidationSubmitMessage('success-refresh-failed')).not.toContain('could not be submitted')
     expect(humanValidationSubmitMessage('conflict-refresh-failed')).toBe(
-      'The governance state changed, but the latest decision history could not be refreshed.',
+      'This Candidate changed since you started reviewing, but the latest state could not be refreshed.',
     )
     expect(humanValidationSubmitMessage('conflict-refresh-failed')).not.toContain('was saved')
   })
