@@ -37,6 +37,7 @@ class Settings(BaseSettings):
     allow_development_data_population: bool = False
     human_governance_enabled: bool = False
     human_governance_actor_reference: str | None = None
+    human_action_execution_enabled: bool = False
 
     @field_validator("cors_allowed_origins")
     @classmethod
@@ -92,6 +93,17 @@ class Settings(BaseSettings):
             raise ValueError(
                 "HUMAN_GOVERNANCE_ACTOR_REFERENCE is required when "
                 "HUMAN_GOVERNANCE_ENABLED=true"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def require_actor_when_action_execution_enabled(self) -> "Settings":
+        if not self.human_action_execution_enabled:
+            return self
+        if self.human_governance_actor_reference is None:
+            raise ValueError(
+                "HUMAN_GOVERNANCE_ACTOR_REFERENCE is required when "
+                "HUMAN_ACTION_EXECUTION_ENABLED=true"
             )
         return self
 

@@ -151,7 +151,7 @@ def test_github_issue_target_settings_are_not_write_authority(
     assert "github_token" not in field_names
     assert "github_write_token" not in field_names
     assert "github_issue_token" not in field_names
-    assert "human_action_execution_enabled" not in field_names
+    assert app_settings.human_action_execution_enabled is False
     owner_annotation = Settings.model_fields[
         "github_issue_target_repository_owner"
     ].annotation
@@ -260,6 +260,41 @@ def test_enabled_human_governance_requires_nonblank_actor_reference(
         )
 
 
+def test_human_action_execution_is_disabled_by_default_and_independent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("HUMAN_ACTION_EXECUTION_ENABLED", raising=False)
+    monkeypatch.delenv("HUMAN_GOVERNANCE_ENABLED", raising=False)
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.human_action_execution_enabled is False
+    assert app_settings.human_governance_enabled is False
+
+
+def test_human_action_execution_can_be_enabled_without_human_validation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("HUMAN_ACTION_EXECUTION_ENABLED", "true")
+    monkeypatch.setenv("HUMAN_GOVERNANCE_ENABLED", "false")
+    monkeypatch.setenv("HUMAN_GOVERNANCE_ACTOR_REFERENCE", "poc:local-reviewer")
+
+    app_settings = Settings(_env_file=None)
+
+    assert app_settings.human_action_execution_enabled is True
+    assert app_settings.human_governance_enabled is False
+
+
+def test_enabled_action_execution_requires_nonblank_actor_reference() -> None:
+    """Invalid startup config fails in Settings and never reaches the endpoint."""
+    with pytest.raises(ValidationError, match="HUMAN_ACTION_EXECUTION_ENABLED"):
+        Settings(
+            _env_file=None,
+            human_action_execution_enabled=True,
+            human_governance_actor_reference=None,
+        )
+
+
 def test_human_governance_actor_reference_is_not_a_secret() -> None:
     field_names = set(Settings.model_fields)
     actor_annotation = Settings.model_fields[
@@ -267,6 +302,7 @@ def test_human_governance_actor_reference_is_not_a_secret() -> None:
     ].annotation
 
     assert "human_governance_enabled" in field_names
+    assert "human_action_execution_enabled" in field_names
     assert actor_annotation == (str | None)
 
 

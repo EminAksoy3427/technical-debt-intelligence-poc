@@ -10,6 +10,8 @@ from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 from sqlalchemy import CheckConstraint, UniqueConstraint
 
+from app.infrastructure.database.action_approval_models import ActionApprovalModel
+from app.infrastructure.database.action_policy_models import ActionPolicyDecisionModel
 from app.infrastructure.database.action_proposal_models import ActionProposalModel
 from app.infrastructure.database.agent_audit_models import (
     AgentRunModel,
@@ -48,6 +50,8 @@ EXPECTED_TABLES = {
     "human_decisions",
     "technical_debts",
     "action_proposals",
+    "action_approvals",
+    "action_policy_decisions",
 }
 
 
@@ -205,8 +209,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     scripts = ScriptDirectory.from_config(config)
     head = scripts.get_revision(scripts.get_current_head())
 
-    assert head.revision == "20260907_01"
-    assert head.down_revision == "20260906_01"
+    assert head.revision == "20260907_02"
+    assert head.down_revision == "20260907_01"
 
     output = StringIO()
     context = MigrationContext.configure(
@@ -229,6 +233,8 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert HumanDecisionModel.__table__.name == "human_decisions"
     assert TechnicalDebtModel.__table__.name == "technical_debts"
     assert ActionProposalModel.__table__.name == "action_proposals"
+    assert ActionApprovalModel.__table__.name == "action_approvals"
+    assert ActionPolicyDecisionModel.__table__.name == "action_policy_decisions"
 
     migration_sql = output.getvalue()
     for table_name in EXPECTED_TABLES:
@@ -245,9 +251,17 @@ def test_alembic_revision_chain_compiles_for_mssql(
     assert "DROP TABLE policy_decisions" in downgrade_sql
     assert "DROP TABLE tool_executions" in downgrade_sql
     assert "DROP TABLE agent_runs" in downgrade_sql
+    assert "DROP TABLE action_policy_decisions" in downgrade_sql
+    assert "DROP TABLE action_approvals" in downgrade_sql
     assert "DROP TABLE action_proposals" in downgrade_sql
     assert "DROP TABLE technical_debts" in downgrade_sql
     assert "DROP TABLE human_decisions" in downgrade_sql
+    assert downgrade_sql.index("DROP TABLE action_policy_decisions") < (
+        downgrade_sql.index("DROP TABLE action_approvals")
+    )
+    assert downgrade_sql.index("DROP TABLE action_approvals") < downgrade_sql.index(
+        "DROP TABLE action_proposals"
+    )
     assert downgrade_sql.index("DROP TABLE action_proposals") < downgrade_sql.index(
         "DROP TABLE technical_debts"
     )

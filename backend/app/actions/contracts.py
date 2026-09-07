@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from app.core.config import Settings
+from app.domain.action_approvals import is_canonical_payload_fingerprint
 
 
 class TechnicalDebtNotFound(ValueError):
@@ -24,11 +25,50 @@ class ActionProposalPersistenceConflict(ValueError):
     """An ActionProposal write violated a durable integrity guarantee."""
 
 
+class ActionProposalNotFound(ValueError):
+    """The approval command referenced an ActionProposal that does not exist."""
+
+
+class ActionProposalDoesNotBelongToTechnicalDebt(ValueError):
+    """The ActionProposal is not on the path TechnicalDebt."""
+
+
+class StaleActionProposalFingerprint(ValueError):
+    """The client fingerprint does not match the persisted ActionProposal."""
+
+
+class ActionProposalAlreadyApproved(ValueError):
+    """The ActionProposal already holds an L4 approval."""
+
+
+class CompetingActionApprovalExists(ValueError):
+    """Another proposal already occupies the logical CREATE_GITHUB_ISSUE slot."""
+
+
+class ActionApprovalPersistenceConflict(ValueError):
+    """An ActionApproval write violated a durable integrity guarantee."""
+
+
 @dataclass(frozen=True)
 class PrepareActionProposalCommand:
     """Untrusted prepare intent. Preview semantics are not client-supplied."""
 
     technical_debt_id: UUID
+
+
+@dataclass(frozen=True)
+class ApproveActionProposalCommand:
+    """Untrusted L4 approval intent. Actor identity is not client-supplied."""
+
+    technical_debt_id: UUID
+    action_proposal_id: UUID
+    expected_payload_fingerprint: str
+
+    def __post_init__(self) -> None:
+        if not is_canonical_payload_fingerprint(self.expected_payload_fingerprint):
+            raise ValueError(
+                "expected_payload_fingerprint must be a SHA-256 hex digest"
+            )
 
 
 @dataclass(frozen=True)

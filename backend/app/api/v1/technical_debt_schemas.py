@@ -1,9 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.v1.candidate_schemas import CanonicalAssetResponse
+from app.domain.action_approvals import ActionApproval
 from app.domain.action_proposals import ActionProposal, ActionType
 from app.domain.assets import CanonicalAssetRef
 from app.domain.candidates import Candidate
@@ -63,6 +64,24 @@ class ActionProposalResponse(TechnicalDebtApiModel):
     created_at: datetime
 
 
+class ApproveActionProposalRequest(TechnicalDebtApiModel):
+    """Untrusted L4 approval intent. Actor identity is server-owned."""
+
+    expected_payload_fingerprint: str = Field(
+        min_length=64,
+        max_length=64,
+        pattern=r"^[0-9a-f]{64}$",
+    )
+
+
+class ActionApprovalResponse(TechnicalDebtApiModel):
+    action_approval_id: UUID
+    action_proposal_id: UUID
+    payload_fingerprint: str
+    actor_reference: str
+    created_at: datetime
+
+
 class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     technical_debt_id: UUID
     lifecycle_status: TechnicalDebtLifecycleStatus
@@ -70,6 +89,7 @@ class TechnicalDebtDetailResponse(TechnicalDebtApiModel):
     source_candidate: TechnicalDebtSourceCandidateResponse
     creation_human_decision: TechnicalDebtCreationDecisionResponse
     action_proposals: list[ActionProposalResponse]
+    action_approvals: list[ActionApprovalResponse]
 
 
 def technical_debt_list_response(
@@ -106,6 +126,9 @@ def technical_debt_detail_response(
         action_proposals=[
             action_proposal_response(proposal) for proposal in detail.action_proposals
         ],
+        action_approvals=[
+            action_approval_response(approval) for approval in detail.action_approvals
+        ],
     )
 
 
@@ -122,6 +145,16 @@ def action_proposal_response(proposal: ActionProposal) -> ActionProposalResponse
         reconciliation_marker=proposal.reconciliation_marker,
         prepared_by=proposal.prepared_by,
         created_at=proposal.created_at,
+    )
+
+
+def action_approval_response(approval: ActionApproval) -> ActionApprovalResponse:
+    return ActionApprovalResponse(
+        action_approval_id=approval.action_approval_id,
+        action_proposal_id=approval.action_proposal_id,
+        payload_fingerprint=approval.payload_fingerprint,
+        actor_reference=approval.actor_reference,
+        created_at=approval.created_at,
     )
 
 

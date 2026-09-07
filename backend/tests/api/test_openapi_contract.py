@@ -20,6 +20,10 @@ TECHNICAL_DEBT_DETAIL_PATH = "/api/v1/technical-debts/{technical_debt_id}"
 TECHNICAL_DEBT_ACTION_PROPOSALS_PATH = (
     "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
 )
+TECHNICAL_DEBT_ACTION_APPROVALS_PATH = (
+    "/api/v1/technical-debts/{technical_debt_id}/action-proposals"
+    "/{action_proposal_id}/approvals"
+)
 HUMAN_VALIDATION_AUTHORITY_FIELDS = (
     "actor_reference",
     "role",
@@ -306,7 +310,8 @@ def test_openapi_technical_debt_read_contract() -> None:
     debt_schemas = {
         name: component
         for name, component in schema["components"]["schemas"].items()
-        if "TechnicalDebt" in name or name == "ActionProposalResponse"
+        if "TechnicalDebt" in name
+        or name in {"ActionProposalResponse", "ActionApprovalResponse"}
     }
     exposed_properties = {
         property_name.lower()
@@ -328,6 +333,7 @@ def test_openapi_technical_debt_read_contract() -> None:
 
     detail_schema = schema["components"]["schemas"]["TechnicalDebtDetailResponse"]
     assert "action_proposals" in detail_schema["properties"]
+    assert "action_approvals" in detail_schema["properties"]
     assert set(paths[TECHNICAL_DEBT_ACTION_PROPOSALS_PATH]) == {"post"}
     post_operation = paths[TECHNICAL_DEBT_ACTION_PROPOSALS_PATH]["post"]
     assert "requestBody" not in post_operation
@@ -359,3 +365,42 @@ def test_openapi_technical_debt_read_contract() -> None:
         "scope",
     ):
         assert forbidden not in serialized_post
+
+    assert set(paths[TECHNICAL_DEBT_ACTION_APPROVALS_PATH]) == {"post"}
+    approval_operation = paths[TECHNICAL_DEBT_ACTION_APPROVALS_PATH]["post"]
+    request_schema = approval_operation["requestBody"]["content"]["application/json"][
+        "schema"
+    ]
+    if "$ref" in request_schema:
+        request_schema = schema["components"]["schemas"][
+            request_schema["$ref"].rsplit("/", 1)[-1]
+        ]
+    assert set(request_schema["properties"]) == {"expected_payload_fingerprint"}
+    assert request_schema.get("additionalProperties") is False
+    assert approval_operation["responses"]["201"]["content"]["application/json"][
+        "schema"
+    ]["$ref"] == "#/components/schemas/ActionApprovalResponse"
+    approval_schema = schema["components"]["schemas"]["ActionApprovalResponse"]
+    assert set(approval_schema["required"]) == {
+        "action_approval_id",
+        "action_proposal_id",
+        "payload_fingerprint",
+        "actor_reference",
+        "created_at",
+    }
+    for forbidden in (
+        "approved",
+        "status",
+        "revoked",
+        "title",
+        "body",
+        "repository",
+        "execution",
+        "verification",
+        "github_token",
+    ):
+        assert forbidden not in approval_schema["properties"]
+    serialized_approval = str(approval_operation).lower()
+    assert "github_token" not in serialized_approval
+    assert "execution" not in serialized_approval
+    assert "verification" not in serialized_approval

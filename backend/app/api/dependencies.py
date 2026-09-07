@@ -18,6 +18,7 @@ from app.infrastructure.database.engine import create_database_engine
 ACTION_PREPARATION_UNAVAILABLE_DETAIL = (
     "Action preparation is unavailable because the server is not configured"
 )
+ACTION_APPROVAL_UNAVAILABLE_DETAIL = "Action approval is not available"
 
 
 class HumanGovernanceUnavailable(Exception):
@@ -26,6 +27,10 @@ class HumanGovernanceUnavailable(Exception):
 
 class ActionPreparationUnavailable(Exception):
     """Action preparation cannot proceed because server configuration is incomplete."""
+
+
+class HumanActionExecutionUnavailable(Exception):
+    """The local PoC L4 action-approval seam is disabled or unconfigured."""
 
 
 def get_database_session() -> Iterator[Session]:
@@ -70,6 +75,22 @@ def get_action_preparation_session(
     return session
 
 
+def get_action_approval_session(
+    session: Annotated[Session, Depends(get_database_session)],
+) -> Session:
+    """Return the request Session only when it is still transaction-free.
+
+    approve_action_proposal owns BEGIN/COMMIT/ROLLBACK and must not join an
+    already-open transaction. This guard does not query the database.
+    """
+    if session.in_transaction():
+        raise RuntimeError(
+            "approve_action_proposal requires a transaction-free Session; "
+            "the service owns the approval transaction"
+        )
+    return session
+
+
 def human_actor_context_from_actor_reference(
     app_settings: Settings,
 ) -> HumanActorContext:
@@ -108,6 +129,41 @@ def get_human_actor_context() -> HumanActorContext:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Human Validation is not available",
+        ) from error
+
+
+def human_action_execution_actor_context_from_settings(
+    app_settings: Settings,
+) -> HumanActorContext:
+    """Build opaque L4 approval actor attribution from trusted settings.
+
+    HUMAN_GOVERNANCE_ENABLED does not enable this seam. The client cannot
+    supply actor_reference. This is not GitHub write permission.
+    """
+    if not app_settings.human_action_execution_enabled:
+        raise HumanActionExecutionUnavailable(ACTION_APPROVAL_UNAVAILABLE_DETAIL)
+
+    try:
+        return human_actor_context_from_actor_reference(app_settings)
+    except ActionPreparationUnavailable as error:
+        raise HumanActionExecutionUnavailable(
+            ACTION_APPROVAL_UNAVAILABLE_DETAIL
+        ) from error
+
+
+def get_action_approval_actor_context() -> HumanActorContext:
+    """Provide the server-owned L4 approval actor, or deny the request."""
+    try:
+        return human_action_execution_actor_context_from_settings(settings)
+    except HumanActionExecutionUnavailable as error:
+        if not settings.human_action_execution_enabled:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=ACTION_APPROVAL_UNAVAILABLE_DETAIL,
+            ) from error
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=ACTION_APPROVAL_UNAVAILABLE_DETAIL,
         ) from error
 
 

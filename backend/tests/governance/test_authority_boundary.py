@@ -45,6 +45,7 @@ def test_human_validation_is_not_registered_as_an_agent_tool() -> None:
         "human" not in tool_id
         and "validat" not in tool_id
         and "reject" not in tool_id
+        and "approv" not in tool_id
         for tool_id in tool_ids
     )
 
@@ -100,7 +101,14 @@ def test_agent_modules_do_not_import_governance_write_service() -> None:
 
     assert "app.governance.human_validation" not in imported
     assert "app.governance.human_validation.apply_human_validation" not in imported
+    assert "app.actions.approval" not in imported
+    assert "app.actions.execution_policy" not in imported
     assert not any(
         module == "apply_human_validation" or module.endswith(".apply_human_validation")
+        for module in imported
+    )
+    assert not any(
+        module == "approve_action_proposal"
+        or module.endswith(".approve_action_proposal")
         for module in imported
     )

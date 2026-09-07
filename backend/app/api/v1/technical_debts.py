@@ -5,27 +5,40 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.actions.approval import approve_action_proposal
 from app.actions.contracts import (
+    ActionApprovalPersistenceConflict,
     ActionPreparationContext,
+    ActionProposalAlreadyApproved,
+    ActionProposalDoesNotBelongToTechnicalDebt,
+    ActionProposalNotFound,
     ActionProposalPersistenceConflict,
     ActionProposalSourceContextMissing,
+    ApproveActionProposalCommand,
+    CompetingActionApprovalExists,
     InvalidActionPreparationTarget,
     PrepareActionProposalCommand,
+    StaleActionProposalFingerprint,
     TechnicalDebtNotFound,
     TechnicalDebtNotRegistered,
 )
 from app.actions.preparation import prepare_action_proposal
 from app.api.dependencies import (
     ACTION_PREPARATION_UNAVAILABLE_DETAIL,
+    get_action_approval_actor_context,
+    get_action_approval_session,
     get_action_preparation_actor_context,
     get_action_preparation_context,
     get_action_preparation_session,
     get_database_session,
 )
 from app.api.v1.technical_debt_schemas import (
+    ActionApprovalResponse,
     ActionProposalResponse,
+    ApproveActionProposalRequest,
     TechnicalDebtDetailResponse,
     TechnicalDebtListResponse,
+    action_approval_response,
     action_proposal_response,
     technical_debt_detail_response,
     technical_debt_list_response,
@@ -41,9 +54,14 @@ router = APIRouter(prefix="/technical-debts", tags=["technical-debts"])
 
 DatabaseSession = Annotated[Session, Depends(get_database_session)]
 ActionPreparationSession = Annotated[Session, Depends(get_action_preparation_session)]
+ActionApprovalSession = Annotated[Session, Depends(get_action_approval_session)]
 ActionPreparationActor = Annotated[
     HumanActorContext,
     Depends(get_action_preparation_actor_context),
+]
+ActionApprovalActor = Annotated[
+    HumanActorContext,
+    Depends(get_action_approval_actor_context),
 ]
 ServerOwnedPreparationContext = Annotated[
     ActionPreparationContext,
@@ -140,3 +158,69 @@ async def create_technical_debt_action_proposal(
             detail="ActionProposal could not be persisted",
         ) from error
     return action_proposal_response(proposal)
+
+
+@router.post(
+    "/{technical_debt_id}/action-proposals/{action_proposal_id}/approvals",
+    response_model=ActionApprovalResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_technical_debt_action_proposal_approval(
+    technical_debt_id: UUID,
+    action_proposal_id: UUID,
+    payload: ApproveActionProposalRequest,
+    session: ActionApprovalSession,
+    actor_context: ActionApprovalActor,
+) -> ActionApprovalResponse:
+    command = ApproveActionProposalCommand(
+        technical_debt_id=technical_debt_id,
+        action_proposal_id=action_proposal_id,
+        expected_payload_fingerprint=payload.expected_payload_fingerprint,
+    )
+    try:
+        approval = approve_action_proposal(session, command, actor_context)
+    except TechnicalDebtNotFound as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="TechnicalDebt not found",
+        ) from error
+    except (
+        ActionProposalNotFound,
+        ActionProposalDoesNotBelongToTechnicalDebt,
+    ) as error:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="ActionProposal not found",
+        ) from error
+    except StaleActionProposalFingerprint as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "expected_payload_fingerprint does not match the persisted "
+                "ActionProposal"
+            ),
+        ) from error
+    except ActionProposalAlreadyApproved as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ActionProposal is already approved",
+        ) from error
+    except CompetingActionApprovalExists as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                "A competing ActionProposal already holds approval for this "
+                "logical action"
+            ),
+        ) from error
+    except ActionApprovalPersistenceConflict as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="ActionApproval could not be persisted because of a conflict",
+        ) from error
+    except IntegrityError as error:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="ActionApproval could not be persisted",
+        ) from error
+    return action_approval_response(approval)

@@ -279,6 +279,7 @@ def test_technical_debt_detail_exposes_candidate_and_decision_provenance(
         body["creation_human_decision"]["created_at"].replace("Z", "+00:00")
     ) == datetime(2026, 9, 6, 19, 3, tzinfo=UTC)
     assert body["action_proposals"] == []
+    assert body["action_approvals"] == []
     serialized = str(body).lower()
     assert all(field not in serialized for field in FORBIDDEN_FIELDS)
 

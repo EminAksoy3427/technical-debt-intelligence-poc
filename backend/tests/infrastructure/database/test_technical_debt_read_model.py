@@ -173,6 +173,7 @@ def test_list_and_detail_project_source_candidate_and_creation_decision(
     )
     assert detail.technical_debt.lifecycle_status.value == "REGISTERED"
     assert detail.action_proposals == ()
+    assert detail.action_approvals == ()
 
 
 def test_detail_returns_none_for_unknown_technical_debt(
@@ -324,3 +325,4 @@ def test_detail_projects_action_proposals_oldest_then_newest(
     assert not hasattr(detail.action_proposals[0], "approval")
     assert not hasattr(detail.action_proposals[0], "execution")
     assert not hasattr(detail.technical_debt, "action_proposal_id")
+    assert detail.action_approvals == ()
