@@ -1,190 +1,470 @@
-# Technical Debt Intelligence & Governance PoC
+# Technical Debt Intelligence & Governance
 
-Turn source observations into evidence-supported Candidates for human review,
-then into REGISTERED TechnicalDebt and a governed external action.
-**AI proposes. Evidence explains. Human decides.** A Signal is not a Candidate,
-a Candidate is not validated TechnicalDebt, and REGISTERED TechnicalDebt is not
-remediation approved, scheduled, or resolved.
+Technical Debt Intelligence & Governance is a proof-of-concept platform for identifying, investigating, validating, and governing technical debt across multiple technical and operational sources.
 
-## Current PoC
+The platform brings together technical signals, supporting evidence, enterprise context, AI-assisted investigation, human decisions, policy controls, and external action execution in one traceable workflow.
 
-The implementation is a **layered modular monolith** with deterministic
-multi-source ingestion and Candidate correlation, persisted enterprise context,
-a governed Agent Investigation plane, a Human Validation command plane that can
-register TechnicalDebt, a governed L3/L4 GitHub issue action plane, and Nuxt
-workspaces for Overview, Candidates, Technical Debts, and Sources.
+> **Core principle:** Deterministic components establish facts. AI investigates and recommends. Humans decide. Policies control authority. Executors perform approved actions.
 
-```text
-Sources → adapters → source-specific normalization → NormalizedSignal
-        → deterministic Candidate correlation → persistence/read model
-        → FastAPI → Nuxt Candidate Pool / Detail
+---
 
-READ / investigation plane:
-  Nuxt Agent Investigation → FastAPI AgentRun → AgentRuntime
-    → Tool Registry → Policy → Candidate READ tools
+## Why This Project Exists
 
-Human governance command plane (not behind AgentRuntime):
-  Nuxt Human Validation / Technical Debts → FastAPI
-    → apply_human_validation → domain / persistence → MSSQL
+Technical debt in a large organization is rarely visible in a single system.
 
-Governed action plane (not an Agent Tool, not the GitHub READ connector):
-  Nuxt TechnicalDebt Detail
-    → L3 ActionProposal preparation
-    → L4 human approval
-    → dedicated action-execution policy
-    → GitHub Issue Executor (POST create, no retry)
-    → GitHub Issue Verifier (GET-only read-back)
-    → persisted audit trail
+A potential problem may appear as:
+
+- a static code analysis finding,
+- a recurring operational incident,
+- an outdated dependency,
+- a Git history observation,
+- an architectural standard violation,
+- or another technical or operational signal.
+
+These observations are useful, but:
+
+> **A signal is not automatically technical debt.**
+
+A signal must first be connected to the affected system, supported by evidence, enriched with enterprise context, investigated, and reviewed before it becomes a governed technical-debt record.
+
+This project demonstrates how that process can be handled as an end-to-end system rather than as a collection of disconnected tool findings.
+
+---
+
+## End-to-End Flow
+
+```mermaid
+flowchart LR
+    A[Technical & Operational Sources]
+    B[Connectors / Ingestion]
+    C[Normalized Signals]
+    D[Evidence & Provenance]
+    E[Candidate Technical Debt]
+    F[Enterprise Context]
+    G[AI Investigation]
+    H[Human Validation]
+    I[Technical Debt]
+    J[Action Proposal]
+    K[Human Approval]
+    L[Policy Gate]
+    M[External Executor]
+    N[Verification]
+    O[Audit Trail]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    F --> E
+    E --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+    K --> L
+    L --> M
+    M --> N
+    N --> O
 ```
 
-Stack: Python 3.12 baseline (package requires >=3.12), FastAPI, synchronous
-SQLAlchemy 2, Alembic, MSSQL via pyodbc; Nuxt 4 / Vue / TypeScript.
-Frontend configuration requires Node >=22.12.0.
+The workflow deliberately separates **finding**, **decision**, **authorization**, and **execution**.
 
-**Option B is the target:** an extensible modular monolith with Ports & Adapters,
-explicit extension contracts, a governed agent runtime, and async-ready seams.
-This remains one application, not microservices.
+An AI-generated recommendation cannot by itself validate technical debt, approve an action, bypass policy, or modify an external system.
 
-Connector, SourceObservation, and Connector Registry contracts exist for
-registered sources. Candidate-scoped READ tools, Tool Registry, Policy, and a
-bounded Agent Runtime persist AgentRun audit. Human Validation persists
-HumanDecision history, derives Candidate governance, and atomically creates
-exactly one REGISTERED TechnicalDebt on VALIDATE. The server-owned PoC actor
-seam (`HUMAN_GOVERNANCE_ENABLED`, `HUMAN_GOVERNANCE_ACTOR_REFERENCE`) is not
-enterprise authentication. MSSQL remains the system of record.
+---
 
-Day 5 adds server-prepared immutable `CREATE_GITHUB_ISSUE` ActionProposals,
-append-only L4 ActionApproval, a dedicated Action Execution Policy (separate
-from Agent Tool Policy), one-shot GitHub issue execution with
-IN_PROGRESS / SUCCEEDED / FAILED / UNKNOWN outcomes, GET-only verification
-and marker reconciliation, and a TechnicalDebt Detail workbench. AI does not
-autonomously authorize or perform external writes.
+## Core Concepts
 
-The governed GitHub write **capability exists**. Package development, tests,
-and browser smoke did **not** perform a live GitHub write. Capability
-implemented is not the same as a live demo executed.
+| Concept | Meaning |
+|---|---|
+| **Signal** | A technical or operational observation that may indicate a potential problem. |
+| **Evidence** | Information supporting a signal, candidate, investigation, or decision. |
+| **Provenance** | The traceable record of where information originated and how it entered the system. |
+| **Candidate** | A potential technical-debt item awaiting investigation and validation. |
+| **Enterprise Asset** | An application, service, repository, or other managed technical asset. |
+| **Enterprise Context** | Ownership, criticality, relationships, dependencies, and operational information surrounding an asset. |
+| **Technical Debt** | A candidate that has passed the required validation and entered the governed lifecycle. |
+| **Agent Investigation** | AI-assisted analysis performed using controlled context and explicitly allowed tools. |
+| **Human Validation** | The authoritative decision that determines whether a candidate should become governed technical debt. |
+| **Governed Action** | A proposed remediation or management action subject to approval and policy checks. |
+| **Execution** | The controlled application of an approved action to an external system. |
+| **Verification** | Confirmation that the requested external action actually produced the expected result. |
+| **Audit Trail** | Persistent evidence of decisions, policy results, executions, and verification outcomes. |
 
-See the [architecture overview](docs/architecture/overview.md) and the
-[Day 5 checkpoint](docs/checkpoints/day-5-governed-action-execution.md).
-
-## Current end-to-end lifecycle
+Several distinctions are fundamental to the design:
 
 ```text
-Sources → Signal + Evidence → Candidate
-  → Human Validation
-       VALIDATE     → VALIDATED + exactly one REGISTERED TechnicalDebt
-       REJECT       → REJECTED, no TechnicalDebt
-       REQUEST_INFO → INFORMATION_REQUESTED, no TechnicalDebt
-  → L3 Action Preparation → immutable ActionProposal
-  → Human L4 Approval → ActionApproval
-  → dedicated Action Execution Policy → ActionPolicyDecision
-  → ActionExecution → external GitHub create (one attempt)
-  → ActionVerification → persisted audit trail
+Signal              ≠ Technical Debt
+Candidate           ≠ Validated Technical Debt
+AI Recommendation   ≠ Human Decision
+Human Approval      ≠ Policy Authorization
+Execution Request   ≠ Verified Execution
 ```
 
-Human Validation classifies a Candidate. It is not L4 Action Approval.
-ActionProposal is a prepared preview, not authorization. Policy ALLOW is not
-successful execution. External create success is not verification. Verification
-is not TechnicalDebt closure. REGISTERED remains the only TechnicalDebt
-lifecycle status.
+---
 
-## Repository entry points
+## Current PoC Capabilities
 
-| Location | Purpose |
-| --- | --- |
-| [backend/app/main.py](backend/app/main.py) | FastAPI application: `app.main:app` |
-| [backend/app/domain](backend/app/domain) | Signal, Evidence, Candidate, HumanDecision, TechnicalDebt, ActionProposal, ActionApproval, ActionPolicyDecision, ActionExecution, ActionVerification, and enterprise context |
-| [backend/app/governance](backend/app/governance) | Human Validation contracts, transitions, and application service |
-| [backend/app/actions](backend/app/actions) | L3 preparation, L4 approval, action-execution policy, execution, verification, and GitHub action-plane ports |
-| [backend/app](backend/app) | Source-specific ingestion and deterministic correlation |
-| [backend/app/connectors](backend/app/connectors) | Acquisition-plane Connector Registry, including GitHub Issues READ |
-| [backend/app/infrastructure](backend/app/infrastructure) | Source adapters, persistence, read models, GitHub Issue Executor, and GitHub Issue Verifier |
-| [backend/alembic](backend/alembic) | Migrations; configuration in `backend/alembic.ini` |
-| [frontend/app/app.vue](frontend/app/app.vue) | Nuxt entry; routes in `frontend/app/pages` |
-| [backend/tests](backend/tests) / [frontend/tests/unit](frontend/tests/unit) | Backend tests and frontend Vitest tests |
-| [synthetic_repositories](synthetic_repositories) / [synthetic_sources](synthetic_sources) | Controlled source inputs |
-| [evaluation](evaluation/README.md) | Evaluation-only fixtures, separate from runtime inputs |
-| [docs](docs) | Architecture, domain, decisions, API, and checkpoints |
+The current PoC implements the main technical-debt governance flow from source observations through controlled external action execution.
 
-## Run and test entry points
+### Signal and Evidence
 
-With dependencies already installed in the chosen environment, run from `backend`:
+- Multiple technical and operational signal sources
+- Canonical signal normalization
+- Evidence persistence
+- Provenance preservation
+- Duplicate-safe signal persistence
+- Candidate correlation based on related observations
+
+Implemented source scenarios include:
+
+- Semgrep static-analysis findings
+- Incident observations
+- Dependency lifecycle / EOL findings
+- Git-based self-admitted technical debt observations
+
+A read-only GitHub Issues integration is also available as a reference connector for external-system integration.
+
+### Enterprise Context
+
+The system maintains a controlled enterprise model containing:
+
+- applications,
+- services,
+- repositories,
+- teams,
+- asset ownership,
+- asset relationships,
+- dependencies,
+- incidents,
+- and asset criticality information.
+
+This allows a technical finding to be evaluated in the context of the systems and teams affected by it.
+
+### AI-Assisted Investigation
+
+The governed agent runtime can investigate a candidate using explicitly registered read tools.
+
+Available investigation capabilities include access to:
+
+- signal evidence,
+- dependency relationships,
+- incident and enterprise context,
+- architectural guidance,
+- and related supporting information.
+
+The agent produces a structured assessment rather than making an authoritative lifecycle decision.
+
+The runtime includes controls for:
+
+- allowed tools,
+- tool schema validation,
+- policy decisions,
+- execution budgets,
+- iteration limits,
+- timeouts,
+- stop reasons,
+- missing evidence,
+- conflicting evidence,
+- and unsafe or unauthorized tool requests.
+
+The current implementation includes an OpenAI-backed investigation provider behind an explicit provider boundary.
+
+### Human Governance
+
+Authorized users can review:
+
+- candidate information,
+- supporting signals,
+- evidence,
+- provenance,
+- enterprise context,
+- agent assessment,
+- tool activity,
+- policy results,
+- grounding references,
+- and uncertainty.
+
+The human validation workflow keeps the final technical-debt decision outside the AI model.
+
+### Governed Action Execution
+
+Validated technical debt can progress into a controlled action workflow:
 
 ```text
-python -m uvicorn app.main:app --reload
-python -m pytest tests/api/test_openapi_contract.py tests/api/test_candidate_api.py tests/test_health.py
-python -m pytest -m "not integration and not external"
+Technical Debt
+      ↓
+Action Proposal
+      ↓
+Human Approval
+      ↓
+Policy Decision
+      ↓
+Execution
+      ↓
+Verification
+      ↓
+Audit
 ```
 
-Backend dependencies and test configuration are in
-[pyproject.toml](backend/pyproject.toml). Database operations require the
-environment-backed configuration described in [backend/.env.example](backend/.env.example).
-Tests that need live MSSQL are marked `integration`. Tests that need a live
-external HTTP source are marked `external`. The deterministic suite excludes
-both markers and must not require Internet access. Do not run real GitHub
-write tests as part of ordinary local verification.
+External writes are isolated behind executor boundaries.
 
-Agent investigations default to `AGENT_PROVIDER=deterministic`, which requires
-no OpenAI configuration. Live inference requires server-side
-`AGENT_PROVIDER=openai`, `OPENAI_API_KEY`, and `OPENAI_MODEL`; the API and browser
-cannot select the provider or model. The model only proposes existing READ tool
-calls. The Registry, Policy, and bounded Runtime authorize and execute them, and
-raw prompts, model responses, and reasoning are not persisted. After live
-settings are configured, the explicitly paid smoke test is:
+The reference implementation supports governed GitHub Issue creation. The resulting external side effect is verified and reconciled before the workflow is considered complete.
+
+---
+
+## Architecture
+
+The application uses an **extensible modular monolith**.
+
+The system remains deployable as one application while maintaining explicit internal boundaries between major capabilities.
+
+```mermaid
+flowchart TB
+    UI[Nuxt Frontend]
+    API[FastAPI API Layer]
+    CORE[Application & Domain Core]
+    DB[(Microsoft SQL Server)]
+    AGENT[Governed Agent Runtime]
+    EXT[External Systems]
+
+    UI --> API
+    API --> CORE
+    CORE --> DB
+    CORE --> AGENT
+    AGENT --> CORE
+    CORE --> EXT
+```
+
+External dependencies are isolated behind explicit contracts such as:
+
+- connectors,
+- normalizers,
+- agent tools,
+- AI providers,
+- policies,
+- executors,
+- and registries.
+
+This allows new integrations to be introduced without coupling the core domain directly to a specific external technology.
+
+More detailed architecture documentation is available under:
+
+`docs/02-architecture/`
+
+---
+
+## Data and Database
+
+Microsoft SQL Server acts as the persistent system of record for the PoC.
+
+SQLAlchemy provides the application persistence mapping, while Alembic manages versioned database schema evolution.
+
+At a conceptual level, the stored information follows the system lifecycle:
 
 ```text
-RUN_OPENAI_LIVE_TEST=1 python -m pytest -m external tests/integration/test_openai_provider_live.py
+Enterprise Assets
+       │
+       ├── Ownership
+       ├── Relationships
+       └── Incidents
+              │
+              ▼
+Signals → Evidence
+              │
+              ▼
+          Candidates
+              │
+              ▼
+       Human Decisions
+              │
+              ▼
+        Technical Debt
+              │
+              ▼
+       Governed Actions
+              │
+              ▼
+          Execution
+              │
+              ▼
+        Verification
+              │
+              ▼
+          Audit State
 ```
 
-Human Validation is disabled by default. Enabling it requires server-side
-`HUMAN_GOVERNANCE_ENABLED=true` and `HUMAN_GOVERNANCE_ACTOR_REFERENCE`. L4
-approval and execution use a separate `HUMAN_ACTION_EXECUTION_ENABLED` seam.
-`HUMAN_GOVERNANCE_ENABLED` does not enable L4. The configured actor value is
-opaque audit attribution, not a verified employee.
+Database migrations define **how the schema evolves**.
 
-L3 preparation needs the server-owned demo target
-`GITHUB_ISSUE_TARGET_REPOSITORY_OWNER` and
-`GITHUB_ISSUE_TARGET_REPOSITORY_NAME`. Those values are not write authority.
-The dedicated execution-plane credential is `GITHUB_ISSUE_EXECUTOR_TOKEN`
-(`SecretStr`). It is never returned through API or frontend. Policy DENY
-produces zero external writes when execution is disabled or the executor is
-not ready.
+Seed processes provide the **controlled enterprise and demonstration data** required to reproduce the PoC environment.
 
-From `frontend`, `npm run dev` starts Nuxt and `npm test` runs Vitest, as defined
-in [package.json](frontend/package.json). Configure `NUXT_PUBLIC_API_BASE_URL`
-as the FastAPI origin and backend `CORS_ALLOWED_ORIGINS` for browser access;
-see [frontend/.env.example](frontend/.env.example). A missing API base URL
-produces an explicit error; there is no runtime mock fallback.
+The synthetic estate is not intended to reproduce a production enterprise CMDB. It provides a stable environment for demonstrating asset relationships, ownership, incidents, dependencies, technical signals, and governance behavior without using production institutional data.
 
-Current API routes include Candidate reads and AgentRun, Human Validation
-`POST /api/v1/candidates/{candidate_id}/human-decisions`, TechnicalDebt
-list/detail, governed action preparation/approval/execution/verification,
-connectors, and health. Current frontend routes: `/overview`
-(product landing), `/candidates` (Candidate review queue), `/candidates/[id]`
-(Overview, Evidence & Context, AI Investigation as decision support, and
-Human Validation as the authoritative governance boundary),
-`/technical-debts` (governed TechnicalDebt records created through VALIDATE),
-`/technical-debts/[id]` (provenance, Action Preparation, L4 workbench, and
-audit trail), and `/sources` (registered connector inventory and implemented
-Signal ingestion capabilities). Registration is not runtime health, and the
-Connector Registry is not 1:1 with Signal ingestion. Semgrep, Git SATD,
-Incident management, and Dependency lifecycle currently produce
-NormalizedSignal; GitHub Issues is acquisition-only and is not the GitHub
-Issue Executor. `/` redirects to `/overview`. Detailed executable contracts
-are served at `/openapi.json` and browsable at `/docs` on the running FastAPI
-app.
+Detailed database documentation is available under:
 
-Synthetic repositories, synthetic sources, and the development population
-command remain demo/control surfaces. They are not production ingestion and
-do not prove a live GitHub write.
+`docs/03-data-and-database/`
 
-## Deeper documentation
+---
 
-- [Architecture: current, Option B target, database and frontend baseline](docs/architecture/overview.md)
-- [Adding a connector](docs/extensions/adding-a-connector.md)
-- [Database evolution and migrations](docs/database/evolution-and-migrations.md)
-- [Domain invariants and terminology](docs/domain/invariants.md)
-- [ADR 0001: Option B — Extensible Modular Monolith](docs/adr/0001-option-b-extensible-modular-monolith.md)
-- [Current API contract](docs/api-contract.md)
-- [Day 5 checkpoint: governed action execution](docs/checkpoints/day-5-governed-action-execution.md)
-- [Day 4 checkpoint: Human Validation and TechnicalDebt](docs/checkpoints/day-4-human-validation-technical-debt.md)
+## Technology Stack
+
+### Backend
+
+- Python 3.12
+- FastAPI
+- Pydantic
+- SQLAlchemy 2
+- Alembic
+- Microsoft SQL Server
+
+### Frontend
+
+- Nuxt
+- Vue
+- TypeScript
+
+### Analysis and Source Processing
+
+- Semgrep
+- PyDriller
+- Controlled dependency lifecycle data
+- Incident data
+
+### AI
+
+- Governed investigation runtime
+- OpenAI-backed provider
+- Structured tool calling
+- Explicit provider boundary
+
+### External Integration
+
+- Extensible connector contracts
+- Read-only GitHub reference integration
+- Governed GitHub write executor
+- Policy-controlled external execution
+
+---
+
+## Repository Structure
+
+```text
+technical-debt-intelligence-poc/
+│
+├── backend/              Backend application, domain and persistence
+├── frontend/             Nuxt governance workspace
+├── docs/                 Architecture and developer documentation
+├── evaluation/           Ground-truth and evaluation assets
+├── synthetic_sources/    Controlled external-source scenarios
+├── README.md             Project entry point
+└── AGENTS.md             Repository development instructions
+```
+
+Detailed repository navigation is documented in:
+
+`docs/10-developer-guide/repository-structure.md`
+
+---
+
+## Documentation
+
+The documentation is organized around the system itself rather than the order in which the PoC was developed.
+
+For a first-time reader, the recommended path is:
+
+1. `docs/01-overview/system-overview.md`
+2. `docs/01-overview/end-to-end-flow.md`
+3. `docs/01-overview/core-concepts.md`
+4. `docs/02-architecture/system-architecture.md`
+5. `docs/03-data-and-database/README.md`
+
+After understanding the overall system, individual capabilities can be explored through:
+
+```text
+docs/
+├── 01-overview/
+├── 02-architecture/
+├── 03-data-and-database/
+├── 04-signal-and-evidence/
+├── 05-enterprise-context/
+├── 06-connectors-and-integrations/
+├── 07-agent-intelligence/
+├── 08-governance/
+├── 09-api-and-frontend/
+├── 10-developer-guide/
+├── 11-evaluation/
+├── 12-operations-and-handover/
+├── 13-roadmap/
+├── adr/
+└── history/
+```
+
+`docs/README.md` provides the complete documentation map.
+
+Historical implementation plans and development checkpoints are retained under `docs/history/` for traceability, but they are not the primary source of truth for the current system architecture.
+
+---
+
+## PoC Boundary
+
+This repository demonstrates a **production-aware architecture**, not a production-ready enterprise platform.
+
+The current implementation intentionally uses controlled data and bounded integrations where production enterprise services are unavailable.
+
+Production adoption would require additional work in areas such as:
+
+- enterprise identity and role-based authorization,
+- production CMDB and asset-management integration,
+- production incident-management integration,
+- additional repository and work-management integrations,
+- production secrets and configuration management,
+- enterprise observability and monitoring,
+- centralized audit integration,
+- security hardening,
+- infrastructure deployment,
+- scalability and resilience,
+- and operational ownership.
+
+Large distributed-system technologies are intentionally not introduced unless justified by an actual production requirement.
+
+Future evolution is documented in:
+
+`docs/13-roadmap/`
+
+---
+
+## Design Principle
+
+The architecture is built around explicit separation of responsibility:
+
+```text
+Deterministic Core
+      ↓
+establishes facts and system state
+
+AI Agent
+      ↓
+investigates evidence and recommends
+
+Human
+      ↓
+makes authoritative governance decisions
+
+Policy
+      ↓
+determines whether an approved action is allowed
+
+Executor
+      ↓
+performs the authorized external action
+
+Verification
+      ↓
+confirms the real-world result
+
+Audit
+      ↓
+preserves the complete decision and execution trail
+```
+
+This separation keeps technical-debt intelligence, human accountability, external-system authority, and auditability distinct while allowing them to operate as one end-to-end governance workflow.
